@@ -1,9 +1,9 @@
 
 {
     "domain": "ruuvi",
-    "name": "Ruuvi tag Sensor",
-    "documentation": "https://github.com/JonasR-/ruuvi_hass",
+    "name": "Ruuvi tag Sensor for HASS.io",
+    "documentation": "https://github.com/sergioisidoro/hass-ruuvi",
     "dependencies": [],
-    "codeowners": ["@JonasR", "@salleq", "@PieterGit", "@smaisidoro"],
-    "requirements": ["https://github.com/ttu/ruuvitag-sensor/archive/bleson-ble-communication.zip#ruuvitag_sensor==1.0.0"]
+    "codeowners": ["@smaisidoro"],
+    "requirements": ["https://github.com/sergioisidoro/simple-ruuvitag/archive/master.zip#simple_ruuvitag==0.1.5"]
   }

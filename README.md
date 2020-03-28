@@ -6,29 +6,44 @@ Copy the contents of `custom_components` in this repo to `<config folder>/custom
 The configuration.yaml has to be edited like this
 ```
 sensor:
-  - platform: ruuvi-hass
-    mac: 'MA:CA:DD:RE:SS:00'
-    name: 'livingroom'
-    
-  - platform: ruuvi-hass
-    mac: 'MA:CA:DD:RE:SS:01'
-    name: 'bathroom'
+  - platform: ruuvi
+    resources:
+        - mac: 'MA:CA:DD:RE:SS:00'
+          name: 'livingroom'
+        
+        - mac: 'MA:CA:DD:RE:SS:01'
+          name: 'bathroom'
 ```
 
-If you need you can pass the ble adapter as well.
-Run `hciconfig` to see which ones are available on your machine / env
-Defaults to ruuvi ble_communicator default (at this point is `hci0`)
+**⚠️ Important note: Do not add more than one ruuvi platform in the sensors configuration** 
 
+The code in `setup_platform` is called per platform, so at boot time multiple blocking requests to IO will be performed, resulting in only one of the platforms beings successfully setup.
+
+## Work needed
+The hass component supports passing the bluetoth adapter, but that is currently
+not being propagated to the `simple-ruuvitag` lib. Some work is needed there
 ```
   - platform: ruuvi-hass
-    mac: 'MA:CA:DD:RE:SS:01'
-    name: 'balcony'
+    resources:
+        - mac: 'MA:CA:DD:RE:SS:00'
+          name: 'livingroom'
     adapter: 'hci0' 
 ```
 
+# Tested with
+
+* rasperry pi 4 running Hassio (4 ruuvi sensors)
+* (add please reach out so I'll your setup here)
+
 
 ## Contributors 
-[JonasR-](https://github.com/JonasR-) (author)
-[PieterGit](https://github.com/PieterGit)
-[salleq](https://github.com/salleq)
-[smaisidoro](https://github.com/sergioisidoro)
+This work is a mesh of multiple projects that have been refactored for use in HASS.
+
+- Adding native python bluetooth sockets in HASS base python image - https://github.com/home-assistant/docker-base/pull/53
+- Refactoring and reuse of some code from https://github.com/ttu/ruuvitag-sensor to create https://github.com/sergioisidoro/simple-ruuvitag
+- Refactoring the work from https://github.com/JonasR-/ruuvi_hass to support bluezson
+
+Special thanks to 
+* [Tomi Tuhkanen](https://github.com/ttu) for all the work in ruuvitag-sensor lib
+* [peltsippi](https://github.com/peltsippi) for testing
+* [JonasR-](https://github.com/JonasR-) for his code fro
