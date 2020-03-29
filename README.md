@@ -1,6 +1,10 @@
 # ruuvi_hass
 RuuviTag sensor for hass.io
 
+#### ⚠️ IMPORTANT**
+
+**This project is for HASS.io. For home assistant runing on your bare maching you might require more things**. This project leverages HASS.io that runs in a container with python3 that has been compiled with support for bluetooth sockets. If you want to use this you will need to rebuild python3 with lib-bluetooth.h or bluez.h in your operating system. If you really want to dive head first. check this PR: https://github.com/docker-library/python/pull/445 or this one https://github.com/home-assistant/docker-base/pull/53
+
 Copy the contents of `custom_components` in this repo to `<config folder>/custom_components` (e.g. `/home/homeassistant/.homeassistant/custom_components/`).
 
 The configuration.yaml has to be edited like this
