@@ -1,0 +1,3 @@
+async def async_turn_on(self, *args):
+    async with self._request_lock:
+        await self.hass.async_add_executor_job(self.turn_on, *args)

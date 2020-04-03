@@ -1,6 +1,7 @@
 import datetime
 import logging
 import time
+import asyncio
 
 import voluptuous as vol
 
@@ -103,6 +104,8 @@ class RuuviProbe(object):
         # This is likely not needed, but it's here in case multiple
         # sensors (Hass entities) are requesting updates in parallel
         # and might try to trigger polling at the same time
+        self.update_bluetooth_lock = asyncio.Lock()
+        
         self.already_pooling = False  # TODO: Turn me into a semaphore
 
         self.default_condition = {
@@ -113,40 +116,38 @@ class RuuviProbe(object):
         }
         self.conditions = {mac: self.default_condition for mac in self.mac_addresses}
 
-    def poll(self):
-        if (datetime.datetime.now() - self.last_poll).total_seconds() < self.max_poll_interval:
-            # No need probe every time each HASS Sensor Sensor wants new data.
-            return
 
-        # This is likely not needed, but see comment above
-        if self.already_pooling:
-            time.sleep(self.timeout)
-            return
+    async def update_bluetooth_state(self, *args):
+        async with self.update_bluetooth_lock:
 
-        try:
-            self.already_pooling = True
-            self.ble_client.start()
-            start_pool_time = datetime.datetime.now()
+            if (datetime.datetime.now() - self.last_poll).total_seconds() < self.max_poll_interval:
+                # No need probe every time each HASS Sensor Sensor wants new data.
+                return
 
-            # update flags
-            ready = False
-            timeout = False
+            try:
+                self.already_pooling = True
+                self.ble_client.start()
+                start_pool_time = datetime.datetime.now()
 
-            while not ready or not timeout:
-                if len(self.ble_client.get_current_datas()) == len(self.mac_addresses):
-                    ready = True
+                # update flags
+                ready = False
+                timeout = False
 
-                if (datetime.datetime.now() - start_pool_time).total_seconds() > self.timeout:
-                    timeout = True
+                while not ready or not timeout:
+                    if len(self.ble_client.get_current_datas()) == len(self.mac_addresses):
+                        ready = True
 
-            # We either got data for all the sensors, or we time outed. 
-            # Let's return what we have
-            self.conditions = self.ble_client.get_current_datas(consume=True)
-            self.ble_client.stop()
-            self.already_pooling = False
-        except:
-            _LOGGER.exception("Error on polling sensors")
-        self.last_poll = datetime.datetime.now()
+                    if (datetime.datetime.now() - start_pool_time).total_seconds() > self.timeout:
+                        timeout = True
+
+                # We either got data for all the sensors, or we time outed. 
+                # Let's return what we have
+                self.conditions = self.ble_client.get_current_datas(consume=True)
+                self.ble_client.stop()
+                self.already_pooling = False
+            except:
+                _LOGGER.exception("Error on polling sensors")
+            self.last_poll = datetime.datetime.now()
 
 
 class RuuviSensor(Entity):
@@ -171,5 +172,5 @@ class RuuviSensor(Entity):
         return SENSOR_TYPES[self.sensor_type][1]
 
     def update(self):
-        self.poller.poll()
+        await self.poller.update_bluetooth_state()
         self._state = self.poller.conditions.get(self.mac_address, {}).get(self.sensor_type)
