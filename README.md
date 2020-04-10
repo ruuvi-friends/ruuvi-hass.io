@@ -1,10 +1,15 @@
 # ruuvi_hass
 RuuviTag sensor for hass.io
 
-#### ⚠️ IMPORTANT
+**⚠️ This project is for HASS.io. For home assistant running on your bare machine you might require some dependencies**. 
 
-**This project is for HASS.io. For home assistant runing on your bare maching you might require more things**. This project leverages HASS.io that runs in a container with python3 that has been compiled with support for bluetooth sockets. If you want to use this you will need to rebuild python3 with lib-bluetooth.h or bluez.h in your operating system. If you really want to dive head first. check this PR: https://github.com/docker-library/python/pull/445 or this one https://github.com/home-assistant/docker-base/pull/53
+This project leverages python3 native bluetooth sockets. For python to have access to the Bluetooth socket family it needs to have been compiled with either lib-bluetooth.h or bluez.h in your operating system.
 
+Recent operating systems like Ubuntu and Raspian should support this when using python3. HASS.io also works after [this pull request](https://github.com/home-assistant/docker-base/pull/53) as well as the official python library [after this pull request](https://github.com/docker-library/python/pull/445)
+
+---
+
+# Instructions
 Copy the contents of `custom_components` in this repo to `<config folder>/custom_components` (e.g. `/home/homeassistant/.homeassistant/custom_components/`).
 
 The configuration.yaml has to be edited like this
@@ -19,9 +24,7 @@ sensor:
           name: 'bathroom'
 ```
 
-**⚠️ Important note: Do not add more than one ruuvi platform in the sensors configuration** 
-
-The code in `setup_platform` is called per platform, so at boot time multiple blocking requests to IO will be performed, resulting in only one of the platforms beings successfully setup.
+**⚠️ Important note:** Do not add more than one ruuvi platform in the sensors configuration. The code in `setup_platform` is called once per platform, so at boot time multiple blocking requests to IO will be performed, resulting in only one of the platforms beings successfully setup.
 
 ## Work needed
 The hass component supports passing the bluetoth adapter, but that is currently
