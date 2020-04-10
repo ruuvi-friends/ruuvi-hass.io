@@ -14,7 +14,7 @@ from homeassistant.const import (
     CONF_NAME, CONF_MAC, CONF_RESOURCES
 )
 
-from simple_ruuvitag.ruuvi import RuuviTagClient
+from simple_ruuvitag import RuuviTagClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -98,8 +98,7 @@ class RuuviProbe(object):
         self.last_poll = datetime.datetime.now()
         self.adapter = adapter
 
-        self.ble_client = RuuviTagClient()
-        self.ble_client.setup(mac_addresses=mac_addresses)
+        self.ble_client = RuuviTagClient(mac_addresses=mac_addresses)
 
         # This is likely not needed, but it's here in case multiple
         # sensors (Hass entities) are requesting updates in parallel

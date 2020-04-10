@@ -5,5 +5,5 @@
     "documentation": "https://github.com/sergioisidoro/hass-ruuvi",
     "dependencies": [],
     "codeowners": ["@smaisidoro"],
-    "requirements": ["https://github.com/sergioisidoro/simple-ruuvitag/archive/v0.0.1.zip#simple_ruuvitag==0.0.1"]
+    "requirements": ["simple_ruuvitag"]
   }
