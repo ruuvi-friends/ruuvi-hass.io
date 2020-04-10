@@ -15,8 +15,8 @@ Copy the contents of `custom_components` in this repo to `<config folder>/custom
 The configuration.yaml has to be edited like this
 ```
 sensor:
-  - platform: ruuvi
-    resources:
+  - platform: ruuvi_hassio
+    sensors:
         - mac: 'MA:CA:DD:RE:SS:00'
           name: 'livingroom'
         
@@ -30,8 +30,8 @@ sensor:
 The hass component supports passing the bluetoth adapter, but that is currently
 not being propagated to the `simple-ruuvitag` lib. Some work is needed there
 ```
-  - platform: ruuvi-hass
-    resources:
+  - platform: ruuvi_hassio
+    sensors:
         - mac: 'MA:CA:DD:RE:SS:00'
           name: 'livingroom'
     adapter: 'hci0' 

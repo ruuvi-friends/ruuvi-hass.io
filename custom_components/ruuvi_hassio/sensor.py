@@ -6,13 +6,16 @@ import asyncio
 import voluptuous as vol
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA
-from homeassistant.const import TEMP_CELSIUS
+from homeassistant.const import TEMP_CELSIUS, UNIT_PERCENTAGE, PRESSURE_HPA
 from homeassistant.helpers.entity import Entity
 import homeassistant.helpers.config_validation as cv
 from homeassistant.const import (
     CONF_FORCE_UPDATE, CONF_MONITORED_CONDITIONS,
-    CONF_NAME, CONF_MAC, CONF_RESOURCES
+    CONF_NAME, CONF_MAC, CONF_SENSORS
 )
+
+MILI_G = "cm/s2"
+MILI_VOLT = "mV"
 
 from simple_ruuvitag import RuuviTagClient
 
@@ -33,13 +36,19 @@ MAX_POLL_INTERVAL = 10  # in seconds
 # Sensor types are defined like: Name, units
 SENSOR_TYPES = {
     'temperature': ['Temperature', TEMP_CELSIUS],
-    'humidity': ['Humidity', '%'],
-    'pressure': ['Pressure', 'hPa'],
+    'humidity': ['Humidity', UNIT_PERCENTAGE],
+    'pressure': ['Pressure', PRESSURE_HPA],
+    'acceleration': ['Acceleration', MILI_G],
+    'acceleration_x': ['X Acceleration', MILI_G],
+    'acceleration_y': ['Y Acceleration', MILI_G],
+    'acceleration_z': ['Z Acceleration', MILI_G],
+    'battery': ['Battery voltage', MILI_VOLT],
+    'movement_counter': ['Movement counter', 'count'],
 }
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
-        vol.Required(CONF_RESOURCES): vol.All(
+        vol.Required(CONF_SENSORS): vol.All(
                 cv.ensure_list,
                 [
                     vol.Schema(
@@ -64,7 +73,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 def setup_platform(hass, config, add_devices, discovery_info = None):
-    mac_addresses = [resource[CONF_MAC] for resource in config[CONF_RESOURCES]]
+    mac_addresses = [ruuvi_sensor[CONF_MAC] for ruuvi_sensor in config[CONF_SENSORS]]
     if not isinstance(mac_addresses, list):
         mac_addresses = [mac_addresses]
 
@@ -78,10 +87,10 @@ def setup_platform(hass, config, add_devices, discovery_info = None):
 
     devs = []
 
-    for resource in config[CONF_RESOURCES]:
-        mac_address = resource[CONF_MAC]
-        name = resource.get(CONF_NAME, mac_address)
-        for condition in resource[CONF_MONITORED_CONDITIONS]:
+    for ruuvi_sensor in config[CONF_SENSORS]:
+        mac_address = ruuvi_sensor[CONF_MAC]
+        name = ruuvi_sensor.get(CONF_NAME, mac_address)
+        for condition in ruuvi_sensor[CONF_MONITORED_CONDITIONS]:
             qualified_name = "{} {}".format(name, condition)
 
             devs.append(RuuviSensor(
@@ -100,11 +109,10 @@ class RuuviProbe(object):
 
         self.ble_client = RuuviTagClient(mac_addresses=mac_addresses)
 
-        # This is likely not needed, but it's here in case multiple
-        # sensors (Hass entities) are requesting updates in parallel
-        # and might try to trigger polling at the same time
+        # This is here to ensure that we only query the bluetooth device
+        # every MAX_POLL_INTERVAL. User in the update_bluetooth_state
         self.update_bluetooth_lock = asyncio.Lock()
-        
+
         self.already_pooling = False  # TODO: Turn me into a semaphore
 
         self.default_condition = {
@@ -112,19 +120,24 @@ class RuuviProbe(object):
             'identifier': None, 
             'pressure': None, 
             'temperature': None
+            'acceleration': None,
+            'acceleration_x': None,
+            'acceleration_y': None,
+            'acceleration_z': None,
+            'battery': None,
+            'movement_counter': None,
         }
         self.conditions = {mac: self.default_condition for mac in self.mac_addresses}
 
 
     async def update_bluetooth_state(self, *args):
-        async with self.update_bluetooth_lock:
 
+        async with self.update_bluetooth_lock:
             if (datetime.datetime.now() - self.last_poll).total_seconds() < self.max_poll_interval:
                 # No need probe every time each HASS Sensor Sensor wants new data.
                 return
 
             try:
-                self.already_pooling = True
                 self.ble_client.start()
                 start_pool_time = datetime.datetime.now()
 
@@ -139,11 +152,10 @@ class RuuviProbe(object):
                     if (datetime.datetime.now() - start_pool_time).total_seconds() > self.timeout:
                         timeout = True
 
-                # We either got data for all the sensors, or we time outed. 
+                # We either got data for all the sensors, or we timed out. 
                 # Let's return what we have
                 self.conditions = self.ble_client.get_current_datas(consume=True)
                 self.ble_client.stop()
-                self.already_pooling = False
             except:
                 _LOGGER.exception("Error on polling sensors")
             self.last_poll = datetime.datetime.now()
@@ -172,4 +184,4 @@ class RuuviSensor(Entity):
 
     def update(self):
         await self.poller.update_bluetooth_state()
-        self._state = self.poller.conditions.get(self.mac_address, {}).get(self.sensor_type)
+        self._state = self.poller.conditions.get(self.mac_address, {}).get(self.sensor_type, None)
