@@ -1,4 +1,4 @@
-# ruuvi_hass
+# [ruuvi-HASS.io](https://github.com/ruuvi-friends/ruuvi-hass.io)
 RuuviTag sensor for hass.io
 
 **⚠️ This project is for HASS.io. For home assistant running on your bare machine you might require some dependencies**. 
