@@ -10,7 +10,7 @@ from homeassistant.helpers.entity import Entity
 import homeassistant.helpers.config_validation as cv
 from homeassistant.const import (
     CONF_FORCE_UPDATE, CONF_MONITORED_CONDITIONS,
-    CONF_NAME, CONF_MAC, CONF_RESOURCES
+    CONF_NAME, CONF_MAC, CONF_SENSORS
 )
 
 from simple_ruuvitag.ruuvi import RuuviTagClient
@@ -47,7 +47,7 @@ SENSOR_TYPES = {
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
-        vol.Required(CONF_RESOURCES): vol.All(
+        vol.Required(CONF_SENSORS): vol.All(
                 cv.ensure_list,
                 [
                     vol.Schema(
@@ -72,7 +72,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 def setup_platform(hass, config, add_devices, discovery_info = None):
-    mac_addresses = [resource[CONF_MAC].upper() for resource in config[CONF_RESOURCES]]
+    mac_addresses = [resource[CONF_MAC].upper() for resource in config[CONF_SENSORS]]
     if not isinstance(mac_addresses, list):
         mac_addresses = [mac_addresses]
 
@@ -86,7 +86,7 @@ def setup_platform(hass, config, add_devices, discovery_info = None):
 
     devs = []
 
-    for resource in config[CONF_RESOURCES]:
+    for resource in config[CONF_SENSORS]:
         mac_address = resource[CONF_MAC].upper()
         name = resource.get(CONF_NAME, mac_address)
         for condition in resource[CONF_MONITORED_CONDITIONS]:
@@ -106,13 +106,15 @@ class RuuviProbe(object):
         self.last_poll = datetime.datetime.now()
         self.adapter = adapter
 
-        self.ble_client = RuuviTagClient(mac_addresses=mac_addresses)
+        self.ble_client = RuuviTagClient(
+            mac_addresses=mac_addresses,
+            bt_device=adapter)
         self.already_pooling = False  # TODO: Turn me into a semaphore
 
         self.default_condition = {
-            'humidity': None, 
-            'identifier': None, 
-            'pressure': None, 
+            'humidity': None,
+            'identifier': None,
+            'pressure': None,
             'temperature': None,
             'acceleration': None,
             'acceleration_x': None,
@@ -154,7 +156,7 @@ class RuuviProbe(object):
                 current_state = self.ble_client.get_current_datas()
                 if len(current_state) >= len(self.mac_addresses):
                     ready = True
-
+                
                 if (datetime.datetime.now() - start_pool_time).total_seconds() > self.timeout:
                     timeout = True
                 time.sleep(1)
