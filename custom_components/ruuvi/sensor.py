@@ -63,7 +63,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 def setup_platform(hass, config, add_devices, discovery_info = None):
-    mac_addresses = [resource[CONF_MAC] for resource in config[CONF_RESOURCES]]
+    mac_addresses = [resource[CONF_MAC].upper() for resource in config[CONF_RESOURCES]]
     if not isinstance(mac_addresses, list):
         mac_addresses = [mac_addresses]
 
@@ -78,7 +78,7 @@ def setup_platform(hass, config, add_devices, discovery_info = None):
     devs = []
 
     for resource in config[CONF_RESOURCES]:
-        mac_address = resource[CONF_MAC]
+        mac_address = resource[CONF_MAC].upper()
         name = resource.get(CONF_NAME, mac_address)
         for condition in resource[CONF_MONITORED_CONDITIONS]:
             qualified_name = "{} {}".format(name, condition)
@@ -97,8 +97,7 @@ class RuuviProbe(object):
         self.last_poll = datetime.datetime.now()
         self.adapter = adapter
 
-        self.ble_client = RuuviTagClient()
-        self.ble_client.setup(mac_addresses=mac_addresses)
+        self.ble_client = RuuviTagClient(mac_addresses=mac_addresses)
 
         # This is likely not needed, but it's here in case multiple
         # sensors (Hass entities) are requesting updates in parallel
