@@ -197,4 +197,10 @@ class RuuviSensor(Entity):
 
     def update(self):
         self.poller.poll()
-        self._state = self.poller.conditions.get(self.mac_address, {}).get(self.sensor_type)
+        new_state = self.poller.conditions.get(self.mac_address, {}).get(self.sensor_type)
+        if new_state is not None:
+            self._state = new_state
+        else:
+            # We won't update the state. Timestamp should stay the same
+            return
+
