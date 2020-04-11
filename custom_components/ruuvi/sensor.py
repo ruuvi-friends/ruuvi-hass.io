@@ -5,7 +5,7 @@ import time
 import voluptuous as vol
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA
-from homeassistant.const import TEMP_CELSIUS
+from homeassistant.const import TEMP_CELSIUS, UNIT_PERCENTAGE, PRESSURE_HPA
 from homeassistant.helpers.entity import Entity
 import homeassistant.helpers.config_validation as cv
 from homeassistant.const import (
@@ -29,11 +29,20 @@ DEFAULT_NAME = 'RuuviTag'
 DEFAULT_TIMEOUT = 5
 MAX_POLL_INTERVAL = 10  # in seconds
 
+MILI_G = "cm/s2"
+MILI_VOLT = "mV"
+
 # Sensor types are defined like: Name, units
 SENSOR_TYPES = {
     'temperature': ['Temperature', TEMP_CELSIUS],
-    'humidity': ['Humidity', '%'],
-    'pressure': ['Pressure', 'hPa'],
+    'humidity': ['Humidity', UNIT_PERCENTAGE],
+    'pressure': ['Pressure', PRESSURE_HPA],
+    'acceleration': ['Acceleration', MILI_G],
+    'acceleration_x': ['X Acceleration', MILI_G],
+    'acceleration_y': ['Y Acceleration', MILI_G],
+    'acceleration_z': ['Z Acceleration', MILI_G],
+    'battery': ['Battery voltage', MILI_VOLT],
+    'movement_counter': ['Movement counter', 'count'],
 }
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
@@ -98,28 +107,38 @@ class RuuviProbe(object):
         self.adapter = adapter
 
         self.ble_client = RuuviTagClient(mac_addresses=mac_addresses)
-
-        # This is likely not needed, but it's here in case multiple
-        # sensors (Hass entities) are requesting updates in parallel
-        # and might try to trigger polling at the same time
         self.already_pooling = False  # TODO: Turn me into a semaphore
 
         self.default_condition = {
             'humidity': None, 
             'identifier': None, 
             'pressure': None, 
-            'temperature': None
+            'temperature': None,
+            'acceleration': None,
+            'acceleration_x': None,
+            'acceleration_y': None,
+            'acceleration_z': None,
+            'battery': None,
+            'movement_counter': None,
         }
-        self.conditions = {mac: self.default_condition for mac in self.mac_addresses}
+        self.conditions = {
+            mac: self.default_condition for mac in self.mac_addresses
+            }
 
     def poll(self):
-        if (datetime.datetime.now() - self.last_poll).total_seconds() < self.max_poll_interval:
-            # No need probe every time each HASS Sensor Sensor wants new data.
+
+        if self.already_pooling:
+            wait_timeout = False
+            start_wait_time = datetime.datetime.now()
+
+            while self.already_pooling and not wait_timeout:
+                time.sleep(1)
+                if (datetime.datetime.now() - start_wait_time).total_seconds() > self.timeout:
+                    wait_timeout = True
             return
 
-        # This is likely not needed, but see comment above
-        if self.already_pooling:
-            time.sleep(self.timeout)
+        if (datetime.datetime.now() - self.last_poll).total_seconds() < self.max_poll_interval:
+            # No need probe every time each HASS Sensor Sensor wants new data.
             return
 
         try:
@@ -131,21 +150,28 @@ class RuuviProbe(object):
             ready = False
             timeout = False
 
-            while not ready or not timeout:
-                if len(self.ble_client.get_current_datas()) == len(self.mac_addresses):
+            while not ready and not timeout:
+                current_state = self.ble_client.get_current_datas()
+                if len(current_state) >= len(self.mac_addresses):
                     ready = True
 
                 if (datetime.datetime.now() - start_pool_time).total_seconds() > self.timeout:
                     timeout = True
+                time.sleep(1)
 
-            # We either got data for all the sensors, or we time outed. 
+            # We either got data for all the sensors, or we timed outed. 
             # Let's return what we have
+            self.conditions = {
+                mac: self.default_condition for mac in self.mac_addresses
+                }
             self.conditions = self.ble_client.get_current_datas(consume=True)
+            self.last_poll = datetime.datetime.now()
             self.ble_client.stop()
             self.already_pooling = False
-        except:
-            _LOGGER.exception("Error on polling sensors")
-        self.last_poll = datetime.datetime.now()
+        except Exception as e:
+            self.ble_client.stop()
+            self.already_pooling = False
+            _LOGGER.exception("Error on polling sensors %s" % e)
 
 
 class RuuviSensor(Entity):
