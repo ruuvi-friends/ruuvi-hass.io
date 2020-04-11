@@ -229,6 +229,6 @@ class RuuviSensor(Entity):
                 self.stale_since = datetime.datetime.now()
             else:
                 elapsed = (datetime.datetime.now() - self.stale_since).total_seconds()
-                if elapsed > max_stale * 60:
+                if elapsed > self.max_stale * 60:
                     # DATA IS STALE
                     self._state = None
