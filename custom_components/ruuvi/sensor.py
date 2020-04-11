@@ -19,6 +19,8 @@ _LOGGER = logging.getLogger(__name__)
 
 CONF_ADAPTER = 'adapter'
 CONF_TIMEOUT = 'timeout'
+ALLOW_STALE = 'allow_stale'
+MAX_STALE_DATA_MINUTES = 'max_stale_minutes'
 CONF_POLL_INTERVAL = 'poll_interval'
 
 # In Ruuvi ble this defaults to hci0, so let's ruuvi decide on defaults
@@ -27,6 +29,10 @@ DEFAULT_ADAPTER = ''
 DEFAULT_FORCE_UPDATE = False
 DEFAULT_NAME = 'RuuviTag'
 DEFAULT_TIMEOUT = 5
+
+DEFAULT_ALLOW_STALE = False
+DEFAULT_MAX_STALE_MINUTES = 5
+
 MAX_POLL_INTERVAL = 10  # in seconds
 
 MILI_G = "cm/s2"
@@ -59,6 +65,12 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
                                 default=list(SENSOR_TYPES)): vol.All(
                                     cv.ensure_list,
                                     [vol.In(SENSOR_TYPES)]),
+                            vol.Optional(
+                                ALLOW_STALE,
+                                default=DEFAULT_ALLOW_STALE): cv.boolean,
+                            vol.Optional(
+                                MAX_STALE_DATA_MINUTES,
+                                default=DEFAULT_MAX_STALE_MINUTES): cv.positive_int,
                         }
                     )
                 ],
@@ -93,7 +105,10 @@ def setup_platform(hass, config, add_devices, discovery_info = None):
             qualified_name = "{} {}".format(name, condition)
 
             devs.append(RuuviSensor(
-                probe, mac_address, condition, qualified_name
+                probe, mac_address,
+                condition, qualified_name,
+                resource[ALLOW_STALE],
+                resource[MAX_STALE_DATA_MINUTES]
             ))
     add_devices(devs)
 
@@ -175,12 +190,14 @@ class RuuviProbe(object):
 
 
 class RuuviSensor(Entity):
-    def __init__(self, poller, mac_address, sensor_type, name):
+    def __init__(self, poller, mac_address, sensor_type, name, allow_stale, max_stale):
         self.poller = poller
         self._name = name
         self.mac_address = mac_address
         self.sensor_type = sensor_type
-
+        self.max_stale = max_stale
+        self.stale_since = None
+        self.allow_stale = allow_stale
         self._state = None
 
     @property
@@ -197,10 +214,21 @@ class RuuviSensor(Entity):
 
     def update(self):
         self.poller.poll()
-        new_state = self.poller.conditions.get(self.mac_address, {}).get(self.sensor_type)
-        if new_state is not None:
-            self._state = new_state
-        else:
-            # We won't update the state. Timestamp should stay the same
-            return
+        new_state = self.poller.conditions.get(
+            self.mac_address, {}
+        ).get(self.sensor_type)
 
+        if new_state is not None:
+            # We got new information
+            self._state = new_state
+            self.stale_since = None
+        elif not self.allow_stale:
+            # Sensor data did not reach us.
+            # Start timer for stale data
+            if self.stale_since is None:
+                self.stale_since = datetime.datetime.now()
+            else:
+                elapsed = (datetime.datetime.now() - self.stale_since).total_seconds()
+                if elapsed > max_stale * 60:
+                    # DATA IS STALE
+                    self._state = None
