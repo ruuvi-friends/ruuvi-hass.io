@@ -9,6 +9,29 @@ Recent operating systems like Ubuntu and Raspian should support this when using 
 
 ---
 
+# Prerequisites with homeassistant (venv, https://www.home-assistant.io/docs/installation/virtualenv/)
+Install bleson https://github.com/TheCellule/python-bleson
+
+Give python superuser permissions so btle scans become possible
+```
+#Make sure you have setcap
+sudo apt install libcap2-bin
+
+#Activate virtual environment, make sure to use proper path according to your installation
+~$> source /xx/bin/activate
+
+#Use the python version you've built your venv with! These apply to python3 & default homeassistant venv installation paths etc
+~$> which pythonX 
+/srv/homeassistant/bin/python3
+
+#Find actual executable
+~$> readlink -f /srv/homeassistant/bin/python3
+/usr/bin/python3.8 
+
+#Give permissions
+~$> sudo setcap cap_net_raw,cap_net_admin+eip /usr/bin/python3.8
+```
+
 # Instructions
 Copy the contents of `custom_components` in this repo to `<config folder>/custom_components` (e.g. `/home/homeassistant/.homeassistant/custom_components/`).
 
@@ -42,6 +65,8 @@ Adapter defaults to the default of ble library
 
 # Tested with
 * rasperry pi 4 running Hassio (4 ruuvi sensors)
+* raspberry pi 3b+ with homeassistant venv installation and 6 sensors
+* Intel NUC with homeassistant venv installation and 6 sensors
 * (add please reach out so I'll your setup here)
 
 ## Contributors 
