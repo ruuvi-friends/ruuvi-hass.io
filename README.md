@@ -1,36 +1,13 @@
 # [ruuvi-HASS.io](https://github.com/ruuvi-friends/ruuvi-hass.io)
 RuuviTag sensor for hass.io
 
-**⚠️ This project is for HASS.io. For home assistant running on your bare machine you might require some dependencies**. 
+**⚠️ This project is for HASS.io. For home assistant running on virtualenv see the instructions bellow**. 
 
 This project leverages python3 native bluetooth sockets. For python to have access to the Bluetooth socket family it needs to have been compiled with either lib-bluetooth.h or bluez.h in your operating system.
 
 Recent operating systems like Ubuntu and Raspian should support this when using python3. HASS.io also works after [this pull request](https://github.com/home-assistant/docker-base/pull/53) as well as the official python library [after this pull request](https://github.com/docker-library/python/pull/445)
 
 ---
-
-# Prerequisites with homeassistant (venv, https://www.home-assistant.io/docs/installation/virtualenv/)
-Install bleson https://github.com/TheCellule/python-bleson
-
-Give python superuser permissions so btle scans become possible
-```
-#Make sure you have setcap
-sudo apt install libcap2-bin
-
-#Activate virtual environment, make sure to use proper path according to your installation
-~$> source /xx/bin/activate
-
-#Use the python version you've built your venv with! These apply to python3 & default homeassistant venv installation paths etc
-~$> which pythonX 
-/srv/homeassistant/bin/python3
-
-#Find actual executable
-~$> readlink -f /srv/homeassistant/bin/python3
-/usr/bin/python3.8 
-
-#Give permissions
-~$> sudo setcap cap_net_raw,cap_net_admin+eip /usr/bin/python3.8
-```
 
 # Instructions
 Copy the contents of `custom_components` in this repo to `<config folder>/custom_components` (e.g. `/home/homeassistant/.homeassistant/custom_components/`).
@@ -63,6 +40,31 @@ The hass component supports passing the bluetoth adapter.
 Adapter defaults to the default of ble library
 ```
 
+# Prerequisites with homeassistant (venv)
+(https://www.home-assistant.io/docs/installation/virtualenv/)
+
+1. Install bleson https://github.com/TheCellule/python-bleson
+
+2. Give python superuser permissions so btle scans become possible
+```
+#Make sure you have setcap
+sudo apt install libcap2-bin
+
+#Activate virtual environment, make sure to use proper path according to your installation
+~$> source /xx/bin/activate
+
+#Use the python version you've built your venv with! These apply to python3 & default homeassistant venv installation paths etc
+~$> which pythonX 
+/srv/homeassistant/bin/python3
+
+#Find actual executable
+~$> readlink -f /srv/homeassistant/bin/python3
+/usr/bin/python3.8 
+
+#Give permissions
+~$> sudo setcap cap_net_raw,cap_net_admin+eip /usr/bin/python3.8
+```
+
 # Tested with
 * rasperry pi 4 running Hassio (4 ruuvi sensors)
 * raspberry pi 3b+ with homeassistant venv installation and 6 sensors
@@ -80,3 +82,6 @@ Special thanks to
 * [Tomi Tuhkanen](https://github.com/ttu) for all the work in ruuvitag-sensor lib
 * [peltsippi](https://github.com/peltsippi) for testing
 * [JonasR-](https://github.com/JonasR-) for his code fro
+
+
+
