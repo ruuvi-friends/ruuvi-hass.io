@@ -5,7 +5,7 @@ import time
 import voluptuous as vol
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA
-from homeassistant.const import TEMP_CELSIUS, UNIT_PERCENTAGE, PRESSURE_HPA
+from homeassistant.const import TEMP_CELSIUS, PERCENTAGE, PRESSURE_HPA
 from homeassistant.helpers.entity import Entity
 import homeassistant.helpers.config_validation as cv
 from homeassistant.const import (
@@ -35,7 +35,7 @@ MILI_VOLT = "mV"
 # Sensor types are defined like: Name, units
 SENSOR_TYPES = {
     'temperature': ['Temperature', TEMP_CELSIUS],
-    'humidity': ['Humidity', UNIT_PERCENTAGE],
+    'humidity': ['Humidity', PERCENTAGE],
     'pressure': ['Pressure', PRESSURE_HPA],
     'acceleration': ['Acceleration', MILI_G],
     'acceleration_x': ['X Acceleration', MILI_G],
