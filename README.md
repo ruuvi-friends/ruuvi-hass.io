@@ -7,6 +7,9 @@ This project leverages python3 native bluetooth sockets. For python to have acce
 
 Recent operating systems like Ubuntu and Raspian should support this when using python3. HASS.io also works after [this pull request](https://github.com/home-assistant/docker-base/pull/53) as well as the official python library [after this pull request](https://github.com/docker-library/python/pull/445)
 
+# Initial setup
+
+Run bleson-setcap.sh if you have installed homeassistant to debian/similar according to default instructions. Requires sudo access!
 ---
 
 # Instructions
