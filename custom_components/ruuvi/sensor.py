@@ -8,6 +8,7 @@ import voluptuous as vol
 from homeassistant.components.sensor import PLATFORM_SCHEMA
 from homeassistant.const import TEMP_CELSIUS, PERCENTAGE, PRESSURE_HPA
 from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.event import call_later
 import homeassistant.helpers.config_validation as cv
 from homeassistant.const import (
     CONF_FORCE_UPDATE, CONF_MONITORED_CONDITIONS,
@@ -64,6 +65,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     }
 )
 
+EXPIRE_AFTER = 5*60
+
 def setup_platform(hass, config, add_devices, discovery_info = None):
     mac_addresses = [resource[CONF_MAC].upper() for resource in config[CONF_SENSORS]]
     if not isinstance(mac_addresses, list):
@@ -75,7 +78,7 @@ def setup_platform(hass, config, add_devices, discovery_info = None):
         mac_address = resource[CONF_MAC].upper()
         name = resource.get(CONF_NAME, mac_address)
         for condition in resource[CONF_MONITORED_CONDITIONS]:
-            devs.append(RuuviSensor(mac_address, name, condition))
+            devs.append(RuuviSensor(hass, mac_address, name, condition))
     add_devices(devs)
     RuuviSubscriber(config.get(CONF_ADAPTER), devs).start()
 
@@ -99,13 +102,13 @@ class RuuviSubscriber(object):
             callback=self.handle_callback,
             mac_addresses=list(self.sensors_dict.keys()),
             bt_device=self.adapter)
-        print(f"Starting ruuvi client")
+        _LOGGER.info(f"Starting ruuvi client")
         self.client.start()
 
     def handle_callback(self, mac_address, data):
         sensors = self.sensors_dict[mac_address]
         tag_name = sensors[0].tag_name if sensors else None
-        print(f"Data from {mac_address} ({tag_name}): {data}")
+        _LOGGER.debug(f"Data from {mac_address} ({tag_name}): {data}")
 
         if data is None:
             return
@@ -115,7 +118,8 @@ class RuuviSubscriber(object):
                 sensor.set_state(data[sensor.sensor_type])
 
 class RuuviSensor(Entity):
-    def __init__(self, mac_address, tag_name, sensor_type):
+    def __init__(self, hass, mac_address, tag_name, sensor_type):
+        self.hass = hass
         self.mac_address = mac_address
         self.tag_name = tag_name
         self.sensor_type = sensor_type
@@ -140,5 +144,13 @@ class RuuviSensor(Entity):
     def set_state(self, state):
         self._state = state
         self.update_time = datetime.datetime.now()
-        print(f"Updated {self.update_time} {self.name}: {self.state}")
+        _LOGGER.debug(f"Updated {self.update_time} {self.name}: {self.state}")
         self.schedule_update_ha_state()
+        call_later(self.hass, EXPIRE_AFTER, self.expire_state_if_old)
+
+    def expire_state_if_old(self, delay):
+        state_age_seconds = (datetime.datetime.now() - self.update_time) / datetime.timedelta(seconds=1)
+        if state_age_seconds >= EXPIRE_AFTER:
+            _LOGGER.debug(f"{self.name}: Expire state due to age")
+            self._state = None
+            self.schedule_update_ha_state()
