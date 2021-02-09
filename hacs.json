@@ -1,0 +1,6 @@
+{
+  "name": "RuuviTag Sensor",
+  "render_readme": true,
+  "domains": "sensor",
+  "iot_class": "Local Polling"
+}
