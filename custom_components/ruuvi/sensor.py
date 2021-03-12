@@ -1,12 +1,14 @@
 import datetime
 import logging
 import time
+import collections
 
 import voluptuous as vol
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA
 from homeassistant.const import TEMP_CELSIUS, PERCENTAGE, PRESSURE_HPA
 from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.event import call_later
 import homeassistant.helpers.config_validation as cv
 from homeassistant.const import (
     CONF_FORCE_UPDATE, CONF_MONITORED_CONDITIONS,
@@ -18,16 +20,12 @@ from simple_ruuvitag.ruuvi import RuuviTagClient
 _LOGGER = logging.getLogger(__name__)
 
 CONF_ADAPTER = 'adapter'
-CONF_TIMEOUT = 'timeout'
-CONF_POLL_INTERVAL = 'poll_interval'
 
 # In Ruuvi ble this defaults to hci0, so let's ruuvi decide on defaults
 # https://github.com/ttu/ruuvitag-sensor/blob/master/ruuvitag_sensor/ble_communication.py#L51
 DEFAULT_ADAPTER = '' 
 DEFAULT_FORCE_UPDATE = False
 DEFAULT_NAME = 'RuuviTag'
-DEFAULT_TIMEOUT = 5
-MAX_POLL_INTERVAL = 10  # in seconds
 
 MILI_G = "cm/s2"
 MILI_VOLT = "mV"
@@ -63,26 +61,16 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
                     )
                 ],
         ),
-        vol.Optional(CONF_TIMEOUT, default=DEFAULT_TIMEOUT): cv.positive_int,
-        vol.Optional(
-            CONF_POLL_INTERVAL,
-            default=MAX_POLL_INTERVAL): cv.positive_int,
         vol.Optional(CONF_ADAPTER, default=DEFAULT_ADAPTER): cv.string,
     }
 )
+
+EXPIRE_AFTER = 5*60
 
 def setup_platform(hass, config, add_devices, discovery_info = None):
     mac_addresses = [resource[CONF_MAC].upper() for resource in config[CONF_SENSORS]]
     if not isinstance(mac_addresses, list):
         mac_addresses = [mac_addresses]
-
-    probe = RuuviProbe(
-            RuuviTagClient,
-            mac_addresses,
-            config.get(CONF_TIMEOUT),
-            config.get(CONF_POLL_INTERVAL),
-            config.get(CONF_ADAPTER)
-        )
 
     devs = []
 
@@ -90,104 +78,60 @@ def setup_platform(hass, config, add_devices, discovery_info = None):
         mac_address = resource[CONF_MAC].upper()
         name = resource.get(CONF_NAME, mac_address)
         for condition in resource[CONF_MONITORED_CONDITIONS]:
-            qualified_name = "{} {}".format(name, condition)
-
-            devs.append(RuuviSensor(
-                probe, mac_address, condition, qualified_name
-            ))
+            devs.append(RuuviSensor(hass, mac_address, name, condition))
     add_devices(devs)
+    RuuviSubscriber(config.get(CONF_ADAPTER), devs).start()
 
-
-class RuuviProbe(object):
-    def __init__(self, RuuviTagClient, mac_addresses, timeout, max_poll_interval, adapter):
-        self.mac_addresses = mac_addresses
-        self.timeout = timeout
-        self.max_poll_interval = max_poll_interval
-        self.last_poll = datetime.datetime.now()
+class RuuviSubscriber(object):
+    """
+    Subscribes to a set of Ruuvi tags and update Hass sensors whenever a
+    new value is received.
+    """
+    
+    def __init__(self, adapter, sensors):
         self.adapter = adapter
+        self.sensors = sensors
+        self.sensors_dict = None
 
-        self.ble_client = RuuviTagClient(
-            mac_addresses=mac_addresses,
-            bt_device=adapter)
-        self.already_pooling = False  # TODO: Turn me into a semaphore
+    def start(self):
+        self.sensors_dict = collections.defaultdict(list)
+        for sensor in self.sensors:
+            self.sensors_dict[sensor.mac_address].append(sensor)
 
-        self.default_condition = {
-            'humidity': None,
-            'identifier': None,
-            'pressure': None,
-            'temperature': None,
-            'acceleration': None,
-            'acceleration_x': None,
-            'acceleration_y': None,
-            'acceleration_z': None,
-            'battery': None,
-            'movement_counter': None,
-        }
-        self.conditions = {
-            mac: self.default_condition for mac in self.mac_addresses
-            }
+        self.client = RuuviTagClient(
+            callback=self.handle_callback,
+            mac_addresses=list(self.sensors_dict.keys()),
+            bt_device=self.adapter)
+        _LOGGER.info(f"Starting ruuvi client")
+        self.client.start()
 
-    def poll(self):
+    def handle_callback(self, mac_address, data):
+        sensors = self.sensors_dict[mac_address]
+        tag_name = sensors[0].tag_name if sensors else None
+        _LOGGER.debug(f"Data from {mac_address} ({tag_name}): {data}")
 
-        if self.already_pooling:
-            wait_timeout = False
-            start_wait_time = datetime.datetime.now()
-
-            while self.already_pooling and not wait_timeout:
-                time.sleep(1)
-                if (datetime.datetime.now() - start_wait_time).total_seconds() > self.timeout:
-                    wait_timeout = True
+        if data is None:
             return
 
-        if (datetime.datetime.now() - self.last_poll).total_seconds() < self.max_poll_interval:
-            # No need probe every time each HASS Sensor Sensor wants new data.
-            return
-
-        try:
-            self.already_pooling = True
-            self.ble_client.start()
-            start_pool_time = datetime.datetime.now()
-
-            # update flags
-            ready = False
-            timeout = False
-
-            while not ready and not timeout:
-                current_state = self.ble_client.get_current_datas()
-                if len(current_state) >= len(self.mac_addresses):
-                    ready = True
-                
-                if (datetime.datetime.now() - start_pool_time).total_seconds() > self.timeout:
-                    timeout = True
-                time.sleep(1)
-
-            # We either got data for all the sensors, or we timed outed. 
-            # Let's return what we have
-            self.conditions = {
-                mac: self.default_condition for mac in self.mac_addresses
-                }
-            self.conditions = self.ble_client.get_current_datas(consume=True)
-            self.last_poll = datetime.datetime.now()
-            self.ble_client.stop()
-            self.already_pooling = False
-        except Exception as e:
-            self.ble_client.stop()
-            self.already_pooling = False
-            _LOGGER.exception("Error on polling sensors %s" % e)
-
+        for sensor in sensors:
+            if sensor.sensor_type in data.keys():
+                sensor.set_state(data[sensor.sensor_type])
 
 class RuuviSensor(Entity):
-    def __init__(self, poller, mac_address, sensor_type, name):
-        self.poller = poller
-        self._name = name
+    def __init__(self, hass, mac_address, tag_name, sensor_type):
+        self.hass = hass
         self.mac_address = mac_address
+        self.tag_name = tag_name
         self.sensor_type = sensor_type
-
         self._state = None
 
     @property
     def name(self):
-        return self._name
+        return f"{self.tag_name} {self.sensor_type}"
+
+    @property
+    def should_poll(self):
+        return False
 
     @property
     def state(self):
@@ -197,6 +141,16 @@ class RuuviSensor(Entity):
     def unit_of_measurement(self):
         return SENSOR_TYPES[self.sensor_type][1]
 
-    def update(self):
-        self.poller.poll()
-        self._state = self.poller.conditions.get(self.mac_address, {}).get(self.sensor_type)
+    def set_state(self, state):
+        self._state = state
+        self.update_time = datetime.datetime.now()
+        _LOGGER.debug(f"Updated {self.update_time} {self.name}: {self.state}")
+        self.schedule_update_ha_state()
+        call_later(self.hass, EXPIRE_AFTER, self.expire_state_if_old)
+
+    def expire_state_if_old(self, delay):
+        state_age_seconds = (datetime.datetime.now() - self.update_time) / datetime.timedelta(seconds=1)
+        if state_age_seconds >= EXPIRE_AFTER:
+            _LOGGER.debug(f"{self.name}: Expire state due to age")
+            self._state = None
+            self.schedule_update_ha_state()
