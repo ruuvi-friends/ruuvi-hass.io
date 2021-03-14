@@ -9,6 +9,7 @@ from homeassistant.components.sensor import PLATFORM_SCHEMA
 from homeassistant.const import TEMP_CELSIUS, PERCENTAGE, PRESSURE_HPA
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.event import call_later
+from homeassistant.util import dt
 import homeassistant.helpers.config_validation as cv
 from homeassistant.const import (
     CONF_FORCE_UPDATE, CONF_MONITORED_CONDITIONS,
@@ -143,6 +144,7 @@ class RuuviSensor(Entity):
 
     def set_state(self, state):
         self._state = state
-        self.update_time = datetime.datetime.now()
+        self.update_time = dt.utcnow()
         _LOGGER.debug(f"Updated {self.update_time} {self.name}: {self.state}")
         self.schedule_update_ha_state()
+
