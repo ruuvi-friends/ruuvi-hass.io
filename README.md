@@ -1,19 +1,23 @@
 # [ruuvi-HASS.io](https://github.com/ruuvi-friends/ruuvi-hass.io)
 RuuviTag sensor for hass.io
 
-**⚠️ This project is for HASS.io. For home assistant running on virtualenv see the instructions bellow**. 
-
 This project leverages python3 native bluetooth sockets. For python to have access to the Bluetooth socket family it needs to have been compiled with either lib-bluetooth.h or bluez.h in your operating system.
 
 Recent operating systems like Ubuntu and Raspian should support this when using python3. HASS.io also works after [this pull request](https://github.com/home-assistant/docker-base/pull/53) as well as the official python library [after this pull request](https://github.com/docker-library/python/pull/445)
 
-# Initial setup
 
-Run bleson-setcap.sh if you have installed homeassistant to debian/similar according to default instructions. Requires sudo access!
----
+# Quickstart
 
-# Instructions
-Copy the contents of `custom_components` in this repo to `<config folder>/custom_components` (e.g. `/home/homeassistant/.homeassistant/custom_components/`).
+Note: If you're not using HASS.io official image, please check bellow the pre-requisites before continuing.
+
+How to get started:
+
+1. Copy the contents of `custom_components` in this repo to `<config folder>/custom_components` (but do **not** change `configuration.yaml` yet).
+2. Restart HA to install the custom component and all the dependencies.
+3. Add the sensors to `configuration.yaml` according to the instructions bellow.
+4. Restart HA again
+
+## Configuration
 
 The configuration.yaml has to be edited like this
 ```
@@ -31,7 +35,7 @@ sensor:
 The code in `setup_platform` is called once per platform, so at boot time multiple blocking requests to IO will be performed, 
 resulting in only one of the platforms beings successfully setup.
 
-## Different bluetooth devices
+### Different bluetooth devices
 The hass component supports passing the bluetoth adapter.
 ```
   - platform: ruuvi
@@ -40,10 +44,16 @@ The hass component supports passing the bluetoth adapter.
           name: 'livingroom'
     adapter: "hci0"
 
-Adapter defaults to the default of ble library
 ```
+Adapter defaults to the default of ble library
 
-# Prerequisites with homeassistant (venv)
+---
+# Non HASS.io installations
+You might choose to install Homeassistant directly on your machine or through other methods other than the official HASS image. If you do so, here are some pointers to make this custom component work.
+
+## For debian or similar
+Run bleson-setcap.sh if you have installed homeassistant to debian/similar according to default instructions. Requires sudo access!
+## Homeassistant with Virtual Environment (venv)
 (https://www.home-assistant.io/docs/installation/virtualenv/)
 
 1. Install bleson https://github.com/TheCellule/python-bleson
@@ -74,17 +84,16 @@ sudo apt install libcap2-bin
 * Intel NUC with homeassistant venv installation and 6 sensors
 * (add please reach out so I'll your setup here)
 
-## Contributors 
+# Contributors 
 This work is a mesh of multiple projects that have been refactored for use in HASS.
 
 - Adding native python bluetooth sockets in HASS base python image - https://github.com/home-assistant/docker-base/pull/53
 - Refactoring and reuse of some code from https://github.com/ttu/ruuvitag-sensor to create https://github.com/sergioisidoro/simple-ruuvitag
 - Refactoring the work from https://github.com/JonasR-/ruuvi_hass to support bluezson
 
-Special thanks to 
+## Big thanks to:
 * [Tomi Tuhkanen](https://github.com/ttu) for all the work in ruuvitag-sensor lib
-* [peltsippi](https://github.com/peltsippi) for testing
-* [JonasR-](https://github.com/JonasR-) for his code fro
-
-
-
+* [peltsippi](https://github.com/peltsippi)
+* [JonasR-](https://github.com/JonasR-)
+* [perapp](https://github.com/perapp)
+* [rkallensee](https://github.com/rkallensee)
