@@ -43,9 +43,19 @@ The hass component supports passing the bluetoth adapter.
         - mac: 'MA:CA:DD:RE:SS:00'
           name: 'livingroom'
     adapter: "hci0"
-
 ```
 Adapter defaults to the default of ble library
+
+### Throttling state updates
+Because we're getting data from the devices every second or so (and updating HomeAssistand database every seconds) this can greatly impact the lifespan of your SD card and storage device (eg. Raspberry pi). As a compromise, we're only updating the sensor's state every 10 seconds. Howver you can change this value by passing a value to the `max_update_frequency` as you please. Eg. 0 will update HomeAssistant state as soon as the new data arrives and not lose any data, 10 will discard all data recieved 10 seconds after each sensor update.
+
+```
+  - platform: ruuvi
+    sensors:
+        - mac: 'MA:CA:DD:RE:SS:00'
+          name: 'livingroom'
+    max_update_frequency: 5
+```
 
 ---
 # Non HASS.io installations

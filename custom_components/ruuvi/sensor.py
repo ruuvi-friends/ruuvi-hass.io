@@ -2,6 +2,7 @@ import datetime
 import logging
 import time
 import collections
+from typing import Optional
 
 import voluptuous as vol
 
@@ -13,7 +14,7 @@ from homeassistant.util import dt
 import homeassistant.helpers.config_validation as cv
 from homeassistant.const import (
     CONF_FORCE_UPDATE, CONF_MONITORED_CONDITIONS,
-    CONF_NAME, CONF_MAC, CONF_SENSORS
+    CONF_NAME, CONF_MAC, CONF_SENSORS, STATE_UNKNOWN
 )
 
 from simple_ruuvitag.ruuvi import RuuviTagClient
@@ -21,11 +22,13 @@ from simple_ruuvitag.ruuvi import RuuviTagClient
 _LOGGER = logging.getLogger(__name__)
 
 CONF_ADAPTER = 'adapter'
+MAX_UPDATE_FREQUENCY = 'max_update_frequency'
 
 # In Ruuvi ble this defaults to hci0, so let's ruuvi decide on defaults
 # https://github.com/ttu/ruuvitag-sensor/blob/master/ruuvitag_sensor/ble_communication.py#L51
 DEFAULT_ADAPTER = '' 
 DEFAULT_FORCE_UPDATE = False
+DEFAULT_UPDATE_FREQUENCY = 10
 DEFAULT_NAME = 'RuuviTag'
 
 MILI_G = "cm/s2"
@@ -63,6 +66,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
                 ],
         ),
         vol.Optional(CONF_ADAPTER, default=DEFAULT_ADAPTER): cv.string,
+        vol.Optional(MAX_UPDATE_FREQUENCY, default=DEFAULT_UPDATE_FREQUENCY): cv.positive_int
     }
 )
 
@@ -79,7 +83,7 @@ def setup_platform(hass, config, add_devices, discovery_info = None):
         mac_address = resource[CONF_MAC].upper()
         name = resource.get(CONF_NAME, mac_address)
         for condition in resource[CONF_MONITORED_CONDITIONS]:
-            devs.append(RuuviSensor(hass, mac_address, name, condition))
+            devs.append(RuuviSensor(hass, mac_address, name, condition, config.get(MAX_UPDATE_FREQUENCY)))
     add_devices(devs)
     RuuviSubscriber(config.get(CONF_ADAPTER), devs).start()
 
@@ -119,11 +123,12 @@ class RuuviSubscriber(object):
                 sensor.set_state(data[sensor.sensor_type])
 
 class RuuviSensor(Entity):
-    def __init__(self, hass, mac_address, tag_name, sensor_type):
+    def __init__(self, hass, mac_address, tag_name, sensor_type, max_update_frequency):
         self.hass = hass
         self.mac_address = mac_address
         self.tag_name = tag_name
         self.sensor_type = sensor_type
+        self.max_update_frequency = max_update_frequency
         self._state = None
 
     @property
@@ -143,9 +148,14 @@ class RuuviSensor(Entity):
         return SENSOR_TYPES[self.sensor_type][1]
 
     def set_state(self, state):
+        last_updated_seconds_ago = (dt.utcnow() - self.update_time) / datetime.timedelta(seconds=1)
+        if last_updated_seconds_ago < self.max_update_frequency:
+          return
+
         self._state = state
         self.update_time = dt.utcnow()
         _LOGGER.debug(f"Updated {self.update_time} {self.name}: {self.state}")
+
         self.schedule_update_ha_state()
         call_later(self.hass, EXPIRE_AFTER, self.expire_state_if_old)
 
@@ -153,5 +163,5 @@ class RuuviSensor(Entity):
         state_age_seconds = (dt.utcnow() - self.update_time) / datetime.timedelta(seconds=1)
         if state_age_seconds >= EXPIRE_AFTER:
             _LOGGER.debug(f"{self.name}: Expire state due to age")
-            self._state = None
+            self._state = STATE_UNKNOWN
             self.schedule_update_ha_state()
