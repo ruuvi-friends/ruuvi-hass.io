@@ -129,6 +129,7 @@ class RuuviSensor(Entity):
         self.tag_name = tag_name
         self.sensor_type = sensor_type
         self.max_update_frequency = max_update_frequency
+        self.update_time = dt.utcnow()
         self._state = None
 
     @property
