@@ -1,19 +1,18 @@
 import datetime
 import logging
-import time
 import collections
-from typing import Optional
 
 import voluptuous as vol
 
+import homeassistant.helpers.config_validation as cv
 from homeassistant.components.sensor import PLATFORM_SCHEMA
 from homeassistant.const import TEMP_CELSIUS, PERCENTAGE, PRESSURE_HPA
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.event import call_later
 from homeassistant.util import dt
-import homeassistant.helpers.config_validation as cv
+
 from homeassistant.const import (
-    CONF_FORCE_UPDATE, CONF_MONITORED_CONDITIONS,
+    CONF_MONITORED_CONDITIONS,
     CONF_NAME, CONF_MAC, CONF_SENSORS, STATE_UNKNOWN
 )
 
