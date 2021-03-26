@@ -3,17 +3,17 @@ import logging
 import collections
 
 import voluptuous as vol
-
 import homeassistant.helpers.config_validation as cv
+
 from homeassistant.components.sensor import PLATFORM_SCHEMA
-from homeassistant.const import TEMP_CELSIUS, PERCENTAGE, PRESSURE_HPA
-from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.event import call_later
+from homeassistant.helpers.entity import Entity
 from homeassistant.util import dt
 
 from homeassistant.const import (
     CONF_MONITORED_CONDITIONS,
-    CONF_NAME, CONF_MAC, CONF_SENSORS, STATE_UNKNOWN
+    CONF_NAME, CONF_MAC, CONF_SENSORS, STATE_UNKNOWN,
+    TEMP_CELSIUS, PERCENTAGE, PRESSURE_HPA
 )
 
 from simple_ruuvitag.ruuvi import RuuviTagClient
