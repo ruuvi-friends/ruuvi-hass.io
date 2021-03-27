@@ -2,6 +2,8 @@ import datetime
 import logging
 import collections
 
+from .const import DOMAIN
+
 import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
 
