@@ -95,7 +95,6 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
             )
     
     async_add_entities(devs)
-    
     RuuviSubscriber(config.get(CONF_ADAPTER), devs).start()
 
 class RuuviSubscriber(object):
@@ -108,12 +107,11 @@ class RuuviSubscriber(object):
         self.adapter = adapter
         self.sensors = sensors
         self.sensors_dict = None
-
-    def start(self):
         self.sensors_dict = collections.defaultdict(list)
         for sensor in self.sensors:
             self.sensors_dict[sensor.mac_address].append(sensor)
 
+    def start(self):
         self.client = RuuviTagClient(
             callback=self.handle_callback,
             mac_addresses=list(self.sensors_dict.keys()),
@@ -121,7 +119,7 @@ class RuuviSubscriber(object):
         _LOGGER.info(f"Starting ruuvi client")
         self.client.start()
 
-    async def handle_callback(self, mac_address, data):
+    def handle_callback(self, mac_address, data):
         sensors = self.sensors_dict[mac_address]
         tag_name = sensors[0].tag_name if sensors else None
         _LOGGER.debug(f"Data from {mac_address} ({tag_name}): {data}")
@@ -164,7 +162,7 @@ class RuuviSensor(Entity):
     def unique_id(self):
       return f"ruuvi.{self.mac_address}.{self.sensor_type}"
 
-    async def set_state(self, state):
+    def set_state(self, state):
         last_updated_seconds_ago = (dt.utcnow() - self.update_time) / datetime.timedelta(seconds=1)
 
         self._state = state
@@ -176,7 +174,7 @@ class RuuviSensor(Entity):
           _LOGGER.debug(f"Updating {self.update_time} {self.name}: {self.state}")
           self.update_time = dt.utcnow()
           self.async_schedule_update_ha_state()
-          async_call_later(self.hass, EXPIRE_AFTER, self.expire_state_if_old)
+          async_call_later(self.hass, self.expire_after, self.expire_state_if_old)
 
     async def expire_state_if_old(self, delay):
         state_age_seconds = (dt.utcnow() - self.update_time) / datetime.timedelta(seconds=1)
