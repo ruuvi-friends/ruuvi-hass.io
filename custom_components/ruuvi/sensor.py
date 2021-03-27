@@ -157,11 +157,11 @@ class RuuviSensor(Entity):
         _LOGGER.debug(f"Updated {self.update_time} {self.name}: {self.state}")
 
         self.schedule_update_ha_state()
-        call_later(self.hass, EXPIRE_AFTER, self.expire_state_if_old)
+        # call_later(self.hass, EXPIRE_AFTER, self.expire_state_if_old)
 
-    def expire_state_if_old(self, delay):
-        state_age_seconds = (dt.utcnow() - self.update_time) / datetime.timedelta(seconds=1)
-        if state_age_seconds >= EXPIRE_AFTER:
-            _LOGGER.debug(f"{self.name}: Expire state due to age")
-            self._state = STATE_UNKNOWN
-            self.schedule_update_ha_state()
+    # def expire_state_if_old(self, delay):
+    #     state_age_seconds = (dt.utcnow() - self.update_time) / datetime.timedelta(seconds=1)
+    #     if state_age_seconds >= EXPIRE_AFTER:
+    #         _LOGGER.debug(f"{self.name}: Expire state due to age")
+    #         self._state = STATE_UNKNOWN
+    #         self.schedule_update_ha_state()
