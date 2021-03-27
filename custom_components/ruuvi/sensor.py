@@ -142,7 +142,7 @@ class RuuviSensor(Entity):
         self.max_update_frequency = max_update_frequency
         self.expire_after = expire_after * 60
         self.update_time = dt.utcnow()
-        self._state = None
+        self._state = STATE_UNKNOWN
 
     @property
     def name(self):
@@ -168,16 +168,15 @@ class RuuviSensor(Entity):
         last_updated_seconds_ago = (dt.utcnow() - self.update_time) / datetime.timedelta(seconds=1)
 
         self._state = state
-        self.update_time = dt.utcnow()
-        _LOGGER.debug(f"Updated {self.update_time} {self.name}: {self.state}")
 
         if last_updated_seconds_ago < self.max_update_frequency:
           _LOGGER.debug(f"Updated throttled ({last_updated_seconds_ago} elapsed): {self.name}")
           return
         else:
+          _LOGGER.debug(f"Updating {self.update_time} {self.name}: {self.state}")
+          self.update_time = dt.utcnow()
           self.async_schedule_update_ha_state()
-
-        async_call_later(self.hass, EXPIRE_AFTER, self.expire_state_if_old)
+          async_call_later(self.hass, EXPIRE_AFTER, self.expire_state_if_old)
 
     async def expire_state_if_old(self, delay):
         state_age_seconds = (dt.utcnow() - self.update_time) / datetime.timedelta(seconds=1)
