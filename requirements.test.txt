@@ -1,0 +1,4 @@
+pytest==6.2.2
+pytest-cov==2.10.1
+simple-ruuvitag
+pytest-homeassistant-custom-component
