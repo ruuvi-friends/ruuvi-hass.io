@@ -57,6 +57,12 @@ Because we're getting data from the devices every second or so (and updating Hom
     max_update_frequency: 5
 ```
 
+If you really want all the data possibe, consider setting `max_update_frequency` to 0, and configuring recorder to only submit changes to the database less often. For example, only recording changes to the database every 10 seconds. Note that this configuration has nothing to do with this integration
+```
+recorder:
+  commit_interval: 10
+```
+
 ---
 # Non HASS.io installations
 You might choose to install Homeassistant directly on your machine or through other methods other than the official HASS image. If you do so, here are some pointers to make this custom component work.

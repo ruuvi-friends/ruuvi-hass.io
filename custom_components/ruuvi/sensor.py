@@ -23,7 +23,6 @@ _LOGGER = logging.getLogger(__name__)
 
 CONF_ADAPTER = 'adapter'
 MAX_UPDATE_FREQUENCY = 'max_update_frequency'
-EXPIRE_AFTER = 'expire_after'
 
 # In Ruuvi ble this defaults to hci0, so let's ruuvi decide on defaults
 # https://github.com/ttu/ruuvitag-sensor/blob/master/ruuvitag_sensor/ble_communication.py#L51
@@ -31,7 +30,6 @@ DEFAULT_ADAPTER = ''
 DEFAULT_FORCE_UPDATE = False
 DEFAULT_UPDATE_FREQUENCY = 10
 DEFAULT_NAME = 'RuuviTag'
-DEFAULT_EXPIRE_AFTER = 5
 
 MILI_G = "cm/s2"
 MILI_VOLT = "mV"
@@ -57,7 +55,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
                     vol.Schema(
                         {
                             vol.Required(CONF_MAC): cv.string,
-                            vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
+                            vol.Optional(CONF_NAME): cv.string,
                             vol.Optional(
                                 CONF_MONITORED_CONDITIONS,
                                 default=list(SENSOR_TYPES)): vol.All(
@@ -68,8 +66,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
                 ],
         ),
         vol.Optional(CONF_ADAPTER, default=DEFAULT_ADAPTER): cv.string,
-        vol.Optional(MAX_UPDATE_FREQUENCY, default=DEFAULT_UPDATE_FREQUENCY): cv.positive_int,
-        vol.Optional(EXPIRE_AFTER, default=DEFAULT_EXPIRE_AFTER): cv.positive_int,
+        vol.Optional(MAX_UPDATE_FREQUENCY, default=DEFAULT_UPDATE_FREQUENCY): cv.positive_int
     }
 )
 
@@ -83,13 +80,14 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 
     for resource in config[CONF_SENSORS]:
         mac_address = resource[CONF_MAC].upper()
-        name = resource.get(CONF_NAME, mac_address)
+        default_name = "Ruuvitag_" + mac_address.replace(":","").lower()
+        name = resource.get(CONF_NAME, default_name)
+        print(resource)
         for condition in resource[CONF_MONITORED_CONDITIONS]:
             devs.append(
               RuuviSensor(
                 hass, mac_address, name, condition,
-                config.get(MAX_UPDATE_FREQUENCY),
-                config.get(EXPIRE_AFTER)
+                config.get(MAX_UPDATE_FREQUENCY)
               )
             )
     
@@ -131,13 +129,12 @@ class RuuviSubscriber(object):
                 sensor.set_state(data[sensor.sensor_type])
 
 class RuuviSensor(Entity):
-    def __init__(self, hass, mac_address, tag_name, sensor_type, max_update_frequency, expire_after):
+    def __init__(self, hass, mac_address, tag_name, sensor_type, max_update_frequency):
         self.hass = hass
         self.mac_address = mac_address
         self.tag_name = tag_name
         self.sensor_type = sensor_type
         self.max_update_frequency = max_update_frequency
-        self.expire_after = expire_after * 60
         self.update_time = dt.utcnow()
         self._state = STATE_UNKNOWN
 

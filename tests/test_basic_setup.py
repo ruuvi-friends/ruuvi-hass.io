@@ -1,52 +1,43 @@
 """The basic setup of the platform."""
-
+from unittest.mock import MagicMock, patch
+from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
-
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.ruuvi.const import DOMAIN
 from custom_components.ruuvi.sensor import (
-  CONF_SENSORS, CONF_MAC, CONF_NAME, SENSOR_TYPES, CONF_MONITORED_CONDITIONS,
-  CONF_ADAPTER, MAX_UPDATE_FREQUENCY, EXPIRE_AFTER
+  SENSOR_TYPES
 )
 
-MANDATORY_CONFIG_DATA = {
-  CONF_SENSORS: [
-    {
-      CONF_MAC: "MA:CA:DD:RE:SS:00",
-    }
-  ]
-}
+from custom_components.ruuvi.sensor import (
+  async_setup_platform
+)
 
-FULL_CONFIG_DATA = {
-  CONF_SENSORS: [{
-    CONF_MAC: "MA:CA:DD:RE:SS:00",
-    CONF_NAME: "Living room",
-    CONF_MONITORED_CONDITIONS: SENSOR_TYPES.keys()
-  }],
-  CONF_ADAPTER: '',
-  MAX_UPDATE_FREQUENCY: 5,
-  EXPIRE_AFTER: 5
-}
-
-async def test_setup_ruuvi_empty_platform(hass):
-    """Test creation of lights."""
-
-    """Test a successful setup component."""
-    await async_setup_component(hass, DOMAIN, {})
-    await hass.async_block_till_done()
+from .const import FULL_CONFIG_DATA, MANDATORY_CONFIG_DATA
 
 
-async def test_setup_ruuvi_basic_platform(hass):
-    """Test creation of lights."""
+async def test_full_setup_platform(hass: HomeAssistant):
+    """Test platform setup."""
+    async_add_entities = MagicMock()
 
-    """Test a successful setup component."""
-    await async_setup_component(hass, DOMAIN, MANDATORY_CONFIG_DATA)
-    await hass.async_block_till_done()
+    with patch('custom_components.ruuvi.sensor.RuuviTagClient') as ruuvi_ble_client:
+      await async_setup_platform(hass, FULL_CONFIG_DATA, async_add_entities, None)
+      assert async_add_entities.called
 
-async def test_setup_ruuvi_full_platform(hass):
-    """Test creation of lights."""
 
-    """Test a successful setup component."""
-    await async_setup_component(hass, DOMAIN, FULL_CONFIG_DATA)
-    await hass.async_block_till_done()
+async def test_basic_setup_component(hass: HomeAssistant):
+    """Test platform setup."""
+
+    with patch('custom_components.ruuvi.sensor.RuuviTagClient') as ruuvi_ble_client:
+      assert await async_setup_component(hass, "sensor",
+            {
+                "sensor": [
+                    MANDATORY_CONFIG_DATA,
+                ]
+            },
+        )
+      await hass.async_block_till_done()
+      await hass.async_start()
+      await hass.async_block_till_done()
+    for condition in SENSOR_TYPES.keys():
+      state = hass.states.get(f"sensor.ruuvitag_macaddress00_{condition}")
+      assert state is not None
