@@ -1,4 +1,8 @@
 # [ruuvi-HASS.io](https://github.com/ruuvi-friends/ruuvi-hass.io)
+
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/custom-components/hacs)
+![Master build status](https://github.com/ruuvi-friends/ruuvi-hass.io/actions/workflows/tests.yml/badge.svg?branch=master)
+
 RuuviTag sensor for hass.io
 
 This project leverages python3 native bluetooth sockets. For python to have access to the Bluetooth socket family it needs to have been compiled with either lib-bluetooth.h or bluez.h in your operating system.
