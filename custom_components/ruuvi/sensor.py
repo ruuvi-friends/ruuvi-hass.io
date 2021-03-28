@@ -21,6 +21,9 @@ from simple_ruuvitag.ruuvi import RuuviTagClient
 
 _LOGGER = logging.getLogger(__name__)
 
+# Warnings form BLESON are polluting the home assistant logs and exhausting IO
+logging.getLogger('bleson').setLevel(logging.ERROR)
+
 CONF_ADAPTER = 'adapter'
 MAX_UPDATE_FREQUENCY = 'max_update_frequency'
 
