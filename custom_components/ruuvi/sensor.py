@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import logging
 import collections
@@ -9,6 +10,7 @@ import homeassistant.helpers.config_validation as cv
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA
 from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.event import async_call_later
 from homeassistant.util import dt
 
 from homeassistant.const import (
@@ -23,6 +25,7 @@ _LOGGER = logging.getLogger(__name__)
 
 CONF_ADAPTER = 'adapter'
 MAX_UPDATE_FREQUENCY = 'max_update_frequency'
+EXPIRE_AFTER = 'expire_after'
 
 # In Ruuvi ble this defaults to hci0, so let's ruuvi decide on defaults
 # https://github.com/ttu/ruuvitag-sensor/blob/master/ruuvitag_sensor/ble_communication.py#L51
@@ -30,6 +33,7 @@ DEFAULT_ADAPTER = ''
 DEFAULT_FORCE_UPDATE = False
 DEFAULT_UPDATE_FREQUENCY = 10
 DEFAULT_NAME = 'RuuviTag'
+DEFAULT_EXPIRE_AFTER = 10
 
 MILI_G = "cm/s2"
 MILI_VOLT = "mV"
@@ -66,7 +70,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
                 ],
         ),
         vol.Optional(CONF_ADAPTER, default=DEFAULT_ADAPTER): cv.string,
-        vol.Optional(MAX_UPDATE_FREQUENCY, default=DEFAULT_UPDATE_FREQUENCY): cv.positive_int
+        vol.Optional(MAX_UPDATE_FREQUENCY, default=DEFAULT_UPDATE_FREQUENCY): cv.positive_int,
+        vol.Optional(EXPIRE_AFTER, default=DEFAULT_EXPIRE_AFTER): cv.positive_int
     }
 )
 
@@ -87,7 +92,8 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
             devs.append(
               RuuviSensor(
                 hass, mac_address, name, condition,
-                config.get(MAX_UPDATE_FREQUENCY)
+                config.get(MAX_UPDATE_FREQUENCY),
+                config.get(EXPIRE_AFTER),
               )
             )
     
@@ -129,12 +135,13 @@ class RuuviSubscriber(object):
                 sensor.set_state(data[sensor.sensor_type])
 
 class RuuviSensor(Entity):
-    def __init__(self, hass, mac_address, tag_name, sensor_type, max_update_frequency):
+    def __init__(self, hass, mac_address, tag_name, sensor_type, max_update_frequency, expire_after):
         self.hass = hass
         self.mac_address = mac_address
         self.tag_name = tag_name
         self.sensor_type = sensor_type
         self.max_update_frequency = max_update_frequency
+        self.expire_after = expire_after
         self.update_time = dt.utcnow() - datetime.timedelta(days=360)
         self._state = STATE_UNKNOWN
 
@@ -169,4 +176,16 @@ class RuuviSensor(Entity):
         else:
           _LOGGER.debug(f"Updating {self.update_time} {self.name}: {self.state}")
           self.update_time = dt.utcnow()
+          
           self.async_schedule_update_ha_state()
+
+          # FIXME set state is being called from a thread (because the BLESON callback is threaded)
+          # which results in issues with thread safety.
+          async_call_later(self.hass, self.expire_after, self.expire_state_if_old)
+
+    async def expire_state_if_old(self, delay):
+        state_age_seconds = (dt.utcnow() - self.update_time) / datetime.timedelta(seconds=1)
+        if state_age_seconds >= self.expire_after:
+            _LOGGER.debug(f"{self.name}: Expire state due to age")
+            self._state = STATE_UNKNOWN
+            self.async_schedule_update_ha_state()

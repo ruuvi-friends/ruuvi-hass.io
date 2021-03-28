@@ -18,7 +18,7 @@ async def test_df_3_data_update(hass: HomeAssistant):
     with patch('custom_components.ruuvi.sensor.RuuviTagClient') as ruuvi_ble_client:
         sensors = []
         for condition in SENSOR_TYPES.keys():
-          sensors += [RuuviSensor(hass, "MA:CA:DD:RE:SS:00", "Ruuvitag macaddress00", condition, 10)]
+          sensors += [RuuviSensor(hass, "MA:CA:DD:RE:SS:00", "Ruuvitag macaddress00", condition, 10, 10)]
         subscriber = RuuviSubscriber('', sensors)
         component = component = EntityComponent(_LOGGER, 'sensor', hass)
 
@@ -46,7 +46,7 @@ async def test_df_5_data_update(hass: HomeAssistant):
     with patch('custom_components.ruuvi.sensor.RuuviTagClient') as ruuvi_ble_client:
         sensors = []
         for condition in SENSOR_TYPES.keys():
-          sensors += [RuuviSensor(hass, "MA:CA:DD:RE:SS:00", "Ruuvitag macaddress00", condition, 10)]
+          sensors += [RuuviSensor(hass, "MA:CA:DD:RE:SS:00", "Ruuvitag macaddress00", condition, 10, 10)]
         subscriber = RuuviSubscriber('', sensors)
         component = component = EntityComponent(_LOGGER, 'sensor', hass)
 
