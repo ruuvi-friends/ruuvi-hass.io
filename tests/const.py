@@ -1,7 +1,7 @@
 from custom_components.ruuvi.const import DOMAIN
 
 from homeassistant.const import (
-    CONF_PLATFORM
+    CONF_PLATFORM, STATE_UNKNOWN
 )
 
 from custom_components.ruuvi.sensor import (

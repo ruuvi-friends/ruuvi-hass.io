@@ -80,7 +80,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 
     for resource in config[CONF_SENSORS]:
         mac_address = resource[CONF_MAC].upper()
-        default_name = "Ruuvitag_" + mac_address.replace(":","").lower()
+        default_name = "Ruuvitag " + mac_address.replace(":","").lower()
         name = resource.get(CONF_NAME, default_name)
         print(resource)
         for condition in resource[CONF_MONITORED_CONDITIONS]:
@@ -135,7 +135,7 @@ class RuuviSensor(Entity):
         self.tag_name = tag_name
         self.sensor_type = sensor_type
         self.max_update_frequency = max_update_frequency
-        self.update_time = dt.utcnow()
+        self.update_time = dt.utcnow() - datetime.timedelta(days=360)
         self._state = STATE_UNKNOWN
 
     @property
