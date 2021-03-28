@@ -20,7 +20,7 @@ async def test_df_3_data_update(hass: HomeAssistant):
         for condition in SENSOR_TYPES.keys():
           sensors += [RuuviSensor(hass, "MA:CA:DD:RE:SS:00", "Ruuvitag macaddress00", condition, 10)]
         subscriber = RuuviSubscriber('', sensors)
-        component = component = EntityComponent(_LOGGER, DOMAIN, hass)
+        component = component = EntityComponent(_LOGGER, 'sensor', hass)
 
         await component.async_add_entities(sensors)
         await hass.async_block_till_done()
@@ -32,7 +32,7 @@ async def test_df_3_data_update(hass: HomeAssistant):
     await hass.async_block_till_done()
     for condition in SENSOR_TYPES.keys():
       print(hass.states)
-      state = hass.states.get(f"ruuvi.ruuvitag_macaddress00_{condition}")
+      state = hass.states.get(f"sensor.ruuvitag_macaddress00_{condition}")
       assert state is not None
       assert state.state == str(DF_3_DATA.get(condition, STATE_UNKNOWN))
 
@@ -48,7 +48,7 @@ async def test_df_5_data_update(hass: HomeAssistant):
         for condition in SENSOR_TYPES.keys():
           sensors += [RuuviSensor(hass, "MA:CA:DD:RE:SS:00", "Ruuvitag macaddress00", condition, 10)]
         subscriber = RuuviSubscriber('', sensors)
-        component = component = EntityComponent(_LOGGER, DOMAIN, hass)
+        component = component = EntityComponent(_LOGGER, 'sensor', hass)
 
         await component.async_add_entities(sensors)
         await hass.async_block_till_done()
@@ -60,6 +60,6 @@ async def test_df_5_data_update(hass: HomeAssistant):
     await hass.async_block_till_done()
     for condition in SENSOR_TYPES.keys():
       print(hass.states)
-      state = hass.states.get(f"ruuvi.ruuvitag_macaddress00_{condition}")
+      state = hass.states.get(f"sensor.ruuvitag_macaddress00_{condition}")
       assert state is not None
       assert state.state == str(DF_5_DATA.get(condition, STATE_UNKNOWN))
