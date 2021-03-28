@@ -1,0 +1,15 @@
+{
+  "data_format": 5,
+  "humidity": 53.49,
+  "temperature": 24.30,
+  "pressure": 1000.44,
+  "acceleration": 7,
+  "acceleration_x": 4,
+  "acceleration_y": -4,
+  "acceleration_z": 1036,
+  "tx_power": 4,
+  "battery": 2977,
+  "movement_counter": 66,
+  "measurement_sequence_number": 205,
+  "mac": "macaddress00"
+}

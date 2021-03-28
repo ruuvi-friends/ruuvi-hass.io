@@ -2,11 +2,12 @@ import datetime
 import logging
 import collections
 
+from .const import DOMAIN
+
 import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA
-from homeassistant.helpers.event import call_later
 from homeassistant.helpers.entity import Entity
 from homeassistant.util import dt
 
@@ -54,7 +55,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
                     vol.Schema(
                         {
                             vol.Required(CONF_MAC): cv.string,
-                            vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
+                            vol.Optional(CONF_NAME): cv.string,
                             vol.Optional(
                                 CONF_MONITORED_CONDITIONS,
                                 default=list(SENSOR_TYPES)): vol.All(
@@ -69,9 +70,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     }
 )
 
-EXPIRE_AFTER = 5*60
-
-def setup_platform(hass, config, add_devices, discovery_info = None):
+async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
+    """Set up ruuvi from a config entry."""
     mac_addresses = [resource[CONF_MAC].upper() for resource in config[CONF_SENSORS]]
     if not isinstance(mac_addresses, list):
         mac_addresses = [mac_addresses]
@@ -80,10 +80,18 @@ def setup_platform(hass, config, add_devices, discovery_info = None):
 
     for resource in config[CONF_SENSORS]:
         mac_address = resource[CONF_MAC].upper()
-        name = resource.get(CONF_NAME, mac_address)
+        default_name = "Ruuvitag " + mac_address.replace(":","").lower()
+        name = resource.get(CONF_NAME, default_name)
+        print(resource)
         for condition in resource[CONF_MONITORED_CONDITIONS]:
-            devs.append(RuuviSensor(hass, mac_address, name, condition, config.get(MAX_UPDATE_FREQUENCY)))
-    add_devices(devs)
+            devs.append(
+              RuuviSensor(
+                hass, mac_address, name, condition,
+                config.get(MAX_UPDATE_FREQUENCY)
+              )
+            )
+    
+    async_add_entities(devs)
     RuuviSubscriber(config.get(CONF_ADAPTER), devs).start()
 
 class RuuviSubscriber(object):
@@ -96,12 +104,11 @@ class RuuviSubscriber(object):
         self.adapter = adapter
         self.sensors = sensors
         self.sensors_dict = None
-
-    def start(self):
         self.sensors_dict = collections.defaultdict(list)
         for sensor in self.sensors:
             self.sensors_dict[sensor.mac_address].append(sensor)
 
+    def start(self):
         self.client = RuuviTagClient(
             callback=self.handle_callback,
             mac_addresses=list(self.sensors_dict.keys()),
@@ -128,8 +135,8 @@ class RuuviSensor(Entity):
         self.tag_name = tag_name
         self.sensor_type = sensor_type
         self.max_update_frequency = max_update_frequency
-        self.update_time = dt.utcnow()
-        self._state = None
+        self.update_time = dt.utcnow() - datetime.timedelta(days=360)
+        self._state = STATE_UNKNOWN
 
     @property
     def name(self):
@@ -147,21 +154,19 @@ class RuuviSensor(Entity):
     def unit_of_measurement(self):
         return SENSOR_TYPES[self.sensor_type][1]
 
+    @property
+    def unique_id(self):
+      return f"ruuvi.{self.mac_address}.{self.sensor_type}"
+
     def set_state(self, state):
         last_updated_seconds_ago = (dt.utcnow() - self.update_time) / datetime.timedelta(seconds=1)
-        if last_updated_seconds_ago < self.max_update_frequency:
-          return
 
         self._state = state
-        self.update_time = dt.utcnow()
-        _LOGGER.debug(f"Updated {self.update_time} {self.name}: {self.state}")
 
-        self.schedule_update_ha_state()
-        # call_later(self.hass, EXPIRE_AFTER, self.expire_state_if_old)
-
-    # def expire_state_if_old(self, delay):
-    #     state_age_seconds = (dt.utcnow() - self.update_time) / datetime.timedelta(seconds=1)
-    #     if state_age_seconds >= EXPIRE_AFTER:
-    #         _LOGGER.debug(f"{self.name}: Expire state due to age")
-    #         self._state = STATE_UNKNOWN
-    #         self.schedule_update_ha_state()
+        if last_updated_seconds_ago < self.max_update_frequency:
+          _LOGGER.debug(f"Updated throttled ({last_updated_seconds_ago} elapsed): {self.name}")
+          return
+        else:
+          _LOGGER.debug(f"Updating {self.update_time} {self.name}: {self.state}")
+          self.update_time = dt.utcnow()
+          self.async_schedule_update_ha_state()
