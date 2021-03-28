@@ -8,7 +8,6 @@ import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA
-from homeassistant.helpers.event import call_later
 from homeassistant.helpers.entity import Entity
 from homeassistant.util import dt
 
@@ -174,11 +173,3 @@ class RuuviSensor(Entity):
           _LOGGER.debug(f"Updating {self.update_time} {self.name}: {self.state}")
           self.update_time = dt.utcnow()
           self.async_schedule_update_ha_state()
-          call_later(self.hass, self.expire_after, self.expire_state_if_old)
-
-    async def expire_state_if_old(self, delay):
-        state_age_seconds = (dt.utcnow() - self.update_time) / datetime.timedelta(seconds=1)
-        if state_age_seconds >= self.expire_after:
-            _LOGGER.debug(f"{self.name}: Expire state due to age")
-            self._state = STATE_UNKNOWN
-            self.async_schedule_update_ha_state()
