@@ -5,7 +5,7 @@
     "documentation": "https://github.com/sergioisidoro/hass-ruuvi",
     "dependencies": [],
     "codeowners": ["@smaisidoro"],
-    "requirements": ["simple-ruuvitag==0.0.6"],
+    "requirements": ["simple-ruuvitag==0.0.7"],
     "issue_tracker": "https://github.com/ruuvi-friends/ruuvi-hass.io/issues",
     "version": "1.0.0"
   }
