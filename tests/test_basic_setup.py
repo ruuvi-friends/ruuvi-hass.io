@@ -12,7 +12,7 @@ from custom_components.ruuvi.sensor import (
   async_setup_platform
 )
 
-from .const import FULL_CONFIG_DATA, MANDATORY_CONFIG_DATA
+from .const import FULL_CONFIG_DATA, MANDATORY_CONFIG_DATA, ONLY_CERTAIN_CONDITIONS_CONFIG_DATA
 
 
 async def test_full_setup_platform(hass: HomeAssistant):
@@ -41,3 +41,30 @@ async def test_basic_setup_component(hass: HomeAssistant):
     for condition in SENSOR_TYPES.keys():
       state = hass.states.get(f"sensor.ruuvitag_macaddress00_{condition}")
       assert state is not None
+
+async def test_monitored_conditions_setup(hass: HomeAssistant):
+    """Test platform setup."""
+
+    with patch('custom_components.ruuvi.sensor.RuuviTagClient') as ruuvi_ble_client:
+      assert await async_setup_component(hass, "sensor",
+            {
+                "sensor": [
+                    ONLY_CERTAIN_CONDITIONS_CONFIG_DATA,
+                ]
+            },
+        )
+      await hass.async_block_till_done()
+      await hass.async_start()
+      await hass.async_block_till_done()
+
+    expected_conditions = ['temperature', 'pressure']
+    non_expected_conditions = SENSOR_TYPES.keys() - expected_conditions
+
+    for condition in expected_conditions:
+      state = hass.states.get(f"sensor.ruuvitag_macaddress00_{condition}")
+      assert state is not None
+
+    for condition in non_expected_conditions:
+      state = hass.states.get(f"sensor.ruuvitag_macaddress00_{condition}")
+      assert state is None
+

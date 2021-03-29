@@ -41,6 +41,33 @@ sensor:
 The code in `setup_platform` is called once per platform, so at boot time multiple blocking requests to IO will be performed, 
 resulting in only one of the platforms beings successfully setup.
 
+### Monitoring only certain paramters
+If you don't want to monitor all of variables from all of the tags, it is possible to pick which ones you want Home Assistant to save and monitor. You can do that for each sensor by passing the `monitored_conditions` parameter like so:
+
+```
+sensor:
+  - platform: ruuvi
+    sensors:
+        - mac: 'MA:CA:DD:RE:SS:00'
+          name: 'livingroom'
+          monitored_conditions:
+            - temperature
+            - humidity
+            - pressure
+```
+If you don't provide any, all of the available data will be monitored. The available conditions for monitoring are:
+```
+temperature
+humidity
+pressure
+acceleration
+acceleration_x
+acceleration_y
+acceleration_z
+battery
+movement_counter
+```
+
 ### Different bluetooth devices
 The hass component supports passing the bluetoth adapter.
 ```
