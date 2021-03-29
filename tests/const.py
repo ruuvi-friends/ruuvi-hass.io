@@ -19,6 +19,19 @@ MANDATORY_CONFIG_DATA = {
   ]
 }
 
+ONLY_CERTAIN_CONDITIONS_CONFIG_DATA = {
+  CONF_PLATFORM: DOMAIN,
+  CONF_SENSORS: [
+    {
+      CONF_MAC: "MA:CA:DD:RE:SS:00",
+      CONF_MONITORED_CONDITIONS: [
+        "temperature",
+        "pressure"
+      ]
+    }
+  ]
+}
+
 FULL_CONFIG_DATA = {
   CONF_PLATFORM: DOMAIN,
   CONF_SENSORS: [{
