@@ -50,6 +50,7 @@ SENSOR_TYPES = {
     'movement_counter': ['Movement counter', 'count'],
 }
 
+
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_SENSORS): vol.All(
@@ -73,8 +74,14 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     }
 )
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
+
+async def async_setup_entry(hass, config_entry, async_add_entities, discovery_info=None):
     """Set up ruuvi from a config entry."""
+
+    # TODO - RESOLVE DIFF UPDATE CONFIGS
+    # RIGHT NOW WE'RE JUST SETTING UP EVERYTHIN AGAIN
+    config = config_entry.data
+
     mac_addresses = [resource[CONF_MAC].upper() for resource in config[CONF_SENSORS]]
     if not isinstance(mac_addresses, list):
         mac_addresses = [mac_addresses]
@@ -95,7 +102,44 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
             )
     
     async_add_entities(devs)
-    RuuviSubscriber(config.get(CONF_ADAPTER), devs).start()
+    # FIX ME - WE'RE JUST REPLACING
+    ruuvi_subscrber = RuuviSubscriber(config.get(CONF_ADAPTER), devs)
+    hass.data[DOMAIN]['subscriver'] = ruuvi_subscrber
+    ruuvi_subscrber.start()
+
+
+async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
+    """Set up ruuvi from a config entry."""
+
+    # FIX ME - When setting up through platform this is not called?
+    if hass.data.get(DOMAIN, False) is False:
+      hass.data[DOMAIN] = {}
+
+    mac_addresses = [resource[CONF_MAC].upper() for resource in config[CONF_SENSORS]]
+    if not isinstance(mac_addresses, list):
+        mac_addresses = [mac_addresses]
+
+    devs = []
+
+    for resource in config[CONF_SENSORS]:
+        mac_address = resource[CONF_MAC].upper()
+        default_name = "Ruuvitag " + mac_address.replace(":","").lower()
+        name = resource.get(CONF_NAME, default_name)
+        print(resource)
+        for condition in resource[CONF_MONITORED_CONDITIONS]:
+            devs.append(
+              RuuviSensor(
+                hass, mac_address, name, condition,
+                config.get(MAX_UPDATE_FREQUENCY)
+              )
+            )
+    
+    async_add_entities(devs)
+
+    # FIX ME - WE'RE JUST REPLACING
+    ruuvi_subscrber = RuuviSubscriber(config.get(CONF_ADAPTER), devs)
+    hass.data[DOMAIN]['subscriver'] = ruuvi_subscrber
+    ruuvi_subscrber.start()
 
 class RuuviSubscriber(object):
     """
@@ -118,6 +162,19 @@ class RuuviSubscriber(object):
             bt_device=self.adapter)
         _LOGGER.info(f"Starting ruuvi client")
         self.client.start()
+
+    def stop(self):
+      self.client.stop()
+
+    def restart(self):
+      self.client.stop()
+      # TODO - ADD A METHOD IN RuuviTagClient TO 
+      # UPDATE THE MAC ADDRESSES LIST
+      self.client = RuuviTagClient(
+            callback=self.handle_callback,
+            mac_addresses=list(self.sensors_dict.keys()),
+            bt_device=self.adapter)
+      self.client.start()
 
     def handle_callback(self, mac_address, data):
         sensors = self.sensors_dict[mac_address]

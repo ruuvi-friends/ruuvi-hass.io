@@ -1,0 +1,38 @@
+{
+  "title": "ruuvi",
+  "config": {
+    "step": {
+      "add_sensor": {
+        "data": {
+          "mac": "Mac Address",
+          "name": "Friendly Name"
+        }
+      },
+      "config_sensor": {
+        "title": "What conditions should be monitored?",
+        "data": {
+          "temperature": "Temperature",
+          "humidity": "Humidity",
+          "pressure": "Pressure",
+          "acceleration": "Acceleration",
+          "acceleration_x": "Acceleration x",
+          "acceleration_y": "Acceleration y",
+          "acceleration_z": "Acceleration z",
+          "battery": "Battery",
+          "movement_counter": "Movement counter"
+        }
+      },
+      "add_another": {
+        "data": {
+          "add_another": "Add another sensor?"
+        }
+      },
+      "user": {
+        "data": {
+        }
+      }
+    },
+    "error": {
+    }
+  }
+}
