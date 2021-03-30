@@ -43,7 +43,8 @@ async def test_flow_add_sensor_data_valid(hass):
     assert "form" == result["type"]
 
 
-async def test_flow_configure_sensor_data_valid(hass):
+@patch('custom_components.ruuvi.sensor.RuuviTagClient')
+async def test_flow_configure_sensor_data_valid(_ruuvi_tag_client, hass):
     """Test we advance to the next step when valid sensor is submitted."""
 
     result = await hass.config_entries.flow.async_init(
@@ -83,7 +84,8 @@ async def test_flow_add_another_data_valid(hass):
     assert "form" == result["type"]
 
 
-async def test_flow_complete(hass):
+@patch('custom_components.ruuvi.sensor.RuuviTagClient')
+async def test_flow_complete(_ruuvi_tag_client, hass):
     """Test we advance to the next step when valid sensor is submitted."""
     _result = await hass.config_entries.flow.async_init(
         config_flow.DOMAIN, context={"source": "add_another"}

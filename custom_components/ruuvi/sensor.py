@@ -74,13 +74,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     }
 )
 
-
-async def async_setup_entry(hass, config_entry, async_add_entities, discovery_info=None):
-    """Set up ruuvi from a config entry."""
-
-    # TODO - RESOLVE DIFF UPDATE CONFIGS
-    # RIGHT NOW WE'RE JUST SETTING UP EVERYTHIN AGAIN
-    config = config_entry.data
+async def get_sensor_set(hass, config):
+    """Get a list of Sensor entities from a config entry."""
 
     mac_addresses = [resource[CONF_MAC].upper() for resource in config[CONF_SENSORS]]
     if not isinstance(mac_addresses, list):
@@ -92,7 +87,6 @@ async def async_setup_entry(hass, config_entry, async_add_entities, discovery_in
         mac_address = resource[CONF_MAC].upper()
         default_name = "Ruuvitag " + mac_address.replace(":","").lower()
         name = resource.get(CONF_NAME, default_name)
-        print(resource)
         for condition in resource[CONF_MONITORED_CONDITIONS]:
             devs.append(
               RuuviSensor(
@@ -100,12 +94,19 @@ async def async_setup_entry(hass, config_entry, async_add_entities, discovery_in
                 config.get(MAX_UPDATE_FREQUENCY)
               )
             )
+    return devs
+
+async def async_setup_entry(hass, config_entry, async_add_entities, discovery_info=None):
+    """Set up ruuvi from a config entry."""
+
+    # TODO - RESOLVE DIFF UPDATE CONFIGS
+    # RIGHT NOW WE'RE JUST SETTING UP EVERYTHIN AGAIN
+    config = config_entry.data
+
+    devs = await get_sensor_set(hass, config)
     
-    async_add_entities(devs)
-    # FIX ME - WE'RE JUST REPLACING
-    ruuvi_subscrber = RuuviSubscriber(config.get(CONF_ADAPTER), devs)
-    hass.data[DOMAIN]['subscriver'] = ruuvi_subscrber
-    ruuvi_subscrber.start()
+    devs_to_add = hass.data[DOMAIN]['subscriber'].update_devs(devs)
+    async_add_entities(devs_to_add)
 
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
@@ -115,30 +116,13 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     if hass.data.get(DOMAIN, False) is False:
       hass.data[DOMAIN] = {}
 
-    mac_addresses = [resource[CONF_MAC].upper() for resource in config[CONF_SENSORS]]
-    if not isinstance(mac_addresses, list):
-        mac_addresses = [mac_addresses]
-
-    devs = []
-
-    for resource in config[CONF_SENSORS]:
-        mac_address = resource[CONF_MAC].upper()
-        default_name = "Ruuvitag " + mac_address.replace(":","").lower()
-        name = resource.get(CONF_NAME, default_name)
-        print(resource)
-        for condition in resource[CONF_MONITORED_CONDITIONS]:
-            devs.append(
-              RuuviSensor(
-                hass, mac_address, name, condition,
-                config.get(MAX_UPDATE_FREQUENCY)
-              )
-            )
+    devs = await get_sensor_set(hass, config)
     
     async_add_entities(devs)
 
     # FIX ME - WE'RE JUST REPLACING
     ruuvi_subscrber = RuuviSubscriber(config.get(CONF_ADAPTER), devs)
-    hass.data[DOMAIN]['subscriver'] = ruuvi_subscrber
+    hass.data[DOMAIN]['subscriber'] = ruuvi_subscrber
     ruuvi_subscrber.start()
 
 class RuuviSubscriber(object):
@@ -166,16 +150,15 @@ class RuuviSubscriber(object):
     def stop(self):
       self.client.stop()
 
-    def restart(self):
-      self.client.stop()
-      # TODO - ADD A METHOD IN RuuviTagClient TO 
-      # UPDATE THE MAC ADDRESSES LIST
-      self.client = RuuviTagClient(
-            callback=self.handle_callback,
-            mac_addresses=list(self.sensors_dict.keys()),
-            bt_device=self.adapter)
-      self.client.start()
-
+    def update_devs(self, devs):
+      # TODO - Right now we just replace
+      # Cycle through and add
+      self.sensors = devs
+      for sensor in self.sensors:
+          self.sensors_dict[sensor.mac_address].append(sensor)
+      self.client.set_mac_addresses(list(self.sensors_dict.keys()))
+      return devs
+      
     def handle_callback(self, mac_address, data):
         sensors = self.sensors_dict[mac_address]
         tag_name = sensors[0].tag_name if sensors else None
@@ -187,6 +170,7 @@ class RuuviSubscriber(object):
         for sensor in sensors:
             if sensor.sensor_type in data.keys():
                 sensor.set_state(data[sensor.sensor_type])
+
 
 class RuuviSensor(Entity):
     def __init__(self, hass, mac_address, tag_name, sensor_type, max_update_frequency):
