@@ -28,14 +28,13 @@ ADD_ANOTHER_SCHEMA = vol.Schema(
 )
 
 class RuuviConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    data: Optional[Dict[str, Any]]
+    data = {
+        CONF_SENSORS: []
+    }
+    previous_step_data = {}
 
     async def async_step_user(self, user_input=None):
         """Invoked when a user initiates a flow via the user interface."""
-        self.data = {
-          CONF_SENSORS: []
-        }
-        self.previous_step_data = {}
         return await self.async_step_add_sensor()
 
     async def async_step_add_sensor(self, user_input: Optional[Dict[str, Any]] = None):
