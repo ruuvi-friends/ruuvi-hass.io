@@ -1,0 +1,16 @@
+version: '3.6'
+services:
+  homeassistant:
+    container_name: homeassistant
+    restart: unless-stopped
+    image: homeassistant/home-assistant:stable
+    volumes:
+      - config-volume:/config
+      - ./custom_components:/config/custom_components
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      # Also required for macOS since the network directive in docker-compose does not work
+      - "8123:8123"
+
+volumes: 
+  config-volume:
