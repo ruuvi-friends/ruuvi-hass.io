@@ -2,11 +2,10 @@
 """Tests for the config flow."""
 from unittest import mock
 
-from homeassistant.const import CONF_MAC, CONF_NAME, CONF_PATH
-from pytest_homeassistant_custom_component.common import AsyncMock, patch, MockConfigEntry
+from homeassistant.const import CONF_MAC, CONF_NAME
+from pytest_homeassistant_custom_component.common import patch
 
 from custom_components.ruuvi import config_flow
-from custom_components.ruuvi.const import DOMAIN
 
 
 async def test_flow_user_init(hass):
@@ -15,7 +14,7 @@ async def test_flow_user_init(hass):
         config_flow.DOMAIN, context={"source": "user"}
     )
 
-    # Note, the user step is now empty, which will later be used to 
+    # Note, the user step is now empty, which will later be used to
     # choose betweek Gateway and Ruuvi Sensors. Right now we get
     # forwarded right away to the Add Sensor
 
@@ -57,15 +56,15 @@ async def test_flow_configure_sensor_data_valid(_ruuvi_tag_client, hass):
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], user_input={
-          "temperature": True,
-          "humidity": True,
-          "pressure": True,
-          "acceleration": True,
-          "acceleration_x": True,
-          "acceleration_y": True,
-          "acceleration_z": True,
-          "battery": True,
-          "movement_counter": True
+            "temperature": True,
+            "humidity": True,
+            "pressure": True,
+            "acceleration": True,
+            "acceleration_x": True,
+            "acceleration_y": True,
+            "acceleration_z": True,
+            "battery": True,
+            "movement_counter": True
         }
     )
     assert "add_another" == result["step_id"]

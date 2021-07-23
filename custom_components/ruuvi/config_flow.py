@@ -2,7 +2,9 @@ from homeassistant import config_entries
 from typing import Any, Dict, Optional
 from .const import DOMAIN
 import voluptuous as vol
-from .sensor import CONF_MAC, CONF_NAME, CONF_SENSORS, SENSOR_TYPES, CONF_MONITORED_CONDITIONS
+from .sensor import (
+    CONF_MAC, CONF_NAME, CONF_SENSORS, SENSOR_TYPES, CONF_MONITORED_CONDITIONS
+)
 
 import homeassistant.helpers.config_validation as cv
 
@@ -15,17 +17,18 @@ CONFIG_FLOW_RUUVI_ADD_SCHEMA = vol.Schema(
 
 config_schema = {}
 for condition in SENSOR_TYPES.keys():
-  config_schema[vol.Optional(condition)] = cv.boolean
+    config_schema[vol.Optional(condition)] = cv.boolean
 
 CONFIG_FLOW_RUUVI_CONFIG_SCHEMA = vol.Schema(
-  config_schema
+    config_schema
 )
 
 ADD_ANOTHER_SCHEMA = vol.Schema(
-  {
-    vol.Optional("add_another"): cv.boolean
-  }
+    {
+        vol.Optional("add_another"): cv.boolean
+    }
 )
+
 
 class RuuviConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     data = {
@@ -44,15 +47,15 @@ class RuuviConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # VALIDATE HERE
             if not errors:
                 self.previous_step_data = {
-                        CONF_MAC: user_input[CONF_MAC],
-                        CONF_NAME: user_input.get(CONF_NAME, None),            
+                    CONF_MAC: user_input[CONF_MAC],
+                    CONF_NAME: user_input.get(CONF_NAME, None),
                 }
                 return await self.async_step_config_sensor()
 
         return self.async_show_form(
             step_id="add_sensor", data_schema=CONFIG_FLOW_RUUVI_ADD_SCHEMA, errors=errors
         )
-  
+
     async def async_step_config_sensor(self, user_input: Optional[Dict[str, Any]] = None):
         """Second step in config flow to add a repo to watch."""
         errors: Dict[str, str] = {}
@@ -85,10 +88,10 @@ class RuuviConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                 # User is done adding repos, create the config entry.
                 return self.async_create_entry(
-                  title="Ruuvi Sensors",
-                  data=self.data
+                    title="Ruuvi Sensors",
+                    data=self.data
                 )
-                
+
         return self.async_show_form(
             step_id="add_another", data_schema=ADD_ANOTHER_SCHEMA, errors=errors
         )
