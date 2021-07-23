@@ -48,6 +48,7 @@ SENSOR_TYPES = {
     'acceleration_z': ['Z Acceleration', MILI_G],
     'battery': ['Battery voltage', MILI_VOLT],
     'movement_counter': ['Movement counter', 'count'],
+    'rssi': ['Received Signal Strength Indicator', '']
 }
 
 
