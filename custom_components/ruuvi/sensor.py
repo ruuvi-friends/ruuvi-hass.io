@@ -66,12 +66,14 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
                             default=list(SENSOR_TYPES)): vol.All(
                                 cv.ensure_list,
                                 [vol.In(SENSOR_TYPES)]),
+                        vol.Optional(
+                            MAX_UPDATE_FREQUENCY,
+                            default=DEFAULT_UPDATE_FREQUENCY): cv.positive_int
                     }
                 )
             ],
         ),
         vol.Optional(CONF_ADAPTER, default=DEFAULT_ADAPTER): cv.string,
-        vol.Optional(MAX_UPDATE_FREQUENCY, default=DEFAULT_UPDATE_FREQUENCY): cv.positive_int
     }
 )
 
@@ -87,13 +89,14 @@ async def get_sensor_set(hass, config):
 
     for resource in config[CONF_SENSORS]:
         mac_address = resource[CONF_MAC].upper()
+        max_update_freq = resource[MAX_UPDATE_FREQUENCY]
         default_name = "Ruuvitag " + mac_address.replace(":", "").lower()
         name = resource.get(CONF_NAME, default_name)
         for condition in resource[CONF_MONITORED_CONDITIONS]:
             devs.append(
                 RuuviSensor(
                     hass, mac_address, name, condition,
-                    config.get(MAX_UPDATE_FREQUENCY)
+                    max_update_freq
                 )
             )
     return devs

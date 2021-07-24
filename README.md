@@ -87,7 +87,7 @@ Because we're getting data from the devices every second or so (and updating Hom
     sensors:
         - mac: 'MA:CA:DD:RE:SS:00'
           name: 'livingroom'
-    max_update_frequency: 5
+          max_update_frequency: 5
 ```
 
 If you really want all the data possibe, consider setting `max_update_frequency` to 0, and configuring recorder to only submit changes to the database less often. For example, only recording changes to the database every 10 seconds. Note that this configuration has nothing to do with this integration
