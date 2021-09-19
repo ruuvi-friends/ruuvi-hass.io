@@ -1,9 +1,6 @@
 name: Validate HACS
 
-on:
-  push:
-  schedule:
-    - cron: "0 0 * * *"
+on: [push]
 
 jobs:
   validate:
