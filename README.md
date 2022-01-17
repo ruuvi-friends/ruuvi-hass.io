@@ -4,7 +4,7 @@
 ![Master build status](https://github.com/ruuvi-friends/ruuvi-hass.io/actions/workflows/tests.yml/badge.svg?branch=master)
 [![codecov](https://codecov.io/gh/ruuvi-friends/ruuvi-hass.io/branch/master/graph/badge.svg?token=6KFMONWBYC)](https://codecov.io/gh/ruuvi-friends/ruuvi-hass.io)
 
-## HELP WANTED! - If you want to contribute, contact me on my email :)
+## HELP WANTED! - If you want to contribute, contact [@sergioisidoro](https://github.com/sergioisidoro) by email :)
 
 RuuviTag sensor for hass.io
 
