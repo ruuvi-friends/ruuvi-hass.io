@@ -1,7 +1,7 @@
 import datetime
 import logging
 import collections
-
+import time
 from .const import DOMAIN
 
 import voluptuous as vol
@@ -146,6 +146,18 @@ class RuuviSubscriber(object):
         for sensor in self.sensors:
             self.sensors_dict[sensor.mac_address].append(sensor)
 
+    def update_devs(self, devs):
+        raise NotImplementedError()
+
+    def stop(self):
+        raise NotImplementedError()
+
+    def start(self):
+        raise NotImplementedError()
+
+
+class RuuviBluetoothSubscriber(RuuviSubscriber):
+
     def start(self):
         self.client = RuuviTagClient(
             callback=self.handle_callback,
@@ -156,15 +168,6 @@ class RuuviSubscriber(object):
 
     def stop(self):
         self.client.stop()
-
-    def update_devs(self, devs):
-        # TODO - Right now we just replace
-        # Cycle through and add
-        self.sensors = devs
-        for sensor in self.sensors:
-            self.sensors_dict[sensor.mac_address].append(sensor)
-        self.client.set_mac_addresses(list(self.sensors_dict.keys()))
-        return devs
 
     def handle_callback(self, mac_address, data):
         sensors = self.sensors_dict[mac_address]
@@ -177,6 +180,75 @@ class RuuviSubscriber(object):
         for sensor in sensors:
             if sensor.sensor_type in data.keys():
                 sensor.set_state(data[sensor.sensor_type])
+
+    def update_devs(self, devs):
+        # TODO - Right now we just replace
+        # Cycle through and add
+        self.sensors = devs
+        for sensor in self.sensors:
+            self.sensors_dict[sensor.mac_address].append(sensor)
+        self.client.set_mac_addresses(list(self.sensors_dict.keys()))
+        return devs
+
+
+class RuuviGatewayPoolSubscriber(RuuviSubscriber):
+    """
+    Gateway Poll subscriber uses polling to query data from
+    RuuviGateway
+    """
+    def __init__(self, *args, **kwargs):
+        super(RuuviGatewayPoolSubscriber, self).__init__(*args, **kwargs)
+        self.already_pooling = False
+        self.timeout = 5
+        self.max_poll_interval = 10     # PLACEHOLDER
+        self.last_poll = datetime.datetime.now()
+
+    def poll(self):
+        if self.already_pooling:
+            wait_timeout = False
+            start_wait_time = datetime.datetime.now()
+
+            while self.already_pooling and not wait_timeout:
+                time.sleep(1)
+                if (datetime.datetime.now() - start_wait_time).total_seconds() > self.timeout:
+                    wait_timeout = True
+            return
+
+        if (datetime.datetime.now() - self.last_poll).total_seconds() < self.max_poll_interval:
+            # No need probe every time each HASS Sensor Sensor wants new data.
+            return
+
+        try:
+            self.already_pooling = True
+            self.ble_client.start()
+            start_pool_time = datetime.datetime.now()
+
+            # update flags
+            ready = False
+            timeout = False
+
+            while not ready and not timeout:
+                current_state = self.ble_client.get_current_datas()
+                if len(current_state) >= len(self.mac_addresses):
+                    ready = True
+
+                if (datetime.datetime.now() - start_pool_time).total_seconds() > self.timeout:
+                    timeout = True
+                time.sleep(1)
+
+            # We either got data for all the sensors, or we timed outed.
+            # Let's return what we have
+            self.conditions = {
+                mac: self.default_condition for mac in self.mac_addresses
+            }
+            self.conditions = self.ble_client.get_current_datas(consume=True)
+            self.last_poll = datetime.datetime.now()
+            self.ble_client.stop()
+            self.already_pooling = False
+        except Exception as e:
+            self.ble_client.stop()
+            self.already_pooling = False
+            _LOGGER.exception("Error on polling sensors %s" % e)
 
 
 class RuuviSensor(Entity):
