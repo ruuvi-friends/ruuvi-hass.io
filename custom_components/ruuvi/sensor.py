@@ -9,7 +9,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import (
     DOMAIN, CONF_GATEWAY, CONF_BLUETOOTH, CONF_ADAPTER,
     CONF_SENSORS, CONF_MAC, CONF_MAX_UPDATE_FREQUENCY, CONF_NAME,
-    CONF_MONITORED_CONDITIONS, SENSOR_TYPES
+    CONF_MONITORED_CONDITIONS, SENSOR_TYPES, CONF_RUUVI_PLATFORM_TYPE
 )
 from .entities import RuuviSensor
 from .subscribers import RuuviBluetoothSubscriber
@@ -31,7 +31,7 @@ async def get_sensor_set(hass, config):
         max_update_freq = resource[CONF_MAX_UPDATE_FREQUENCY]
         default_name = "Ruuvitag " + mac_address.replace(":", "").lower()
         name = resource.get(CONF_NAME, default_name)
-        for condition in resource.get(CONF_MONITORED_CONDITIONS, SENSOR_TYPES.keys()):
+        for condition in resource.get(CONF_MONITORED_CONDITIONS, list(SENSOR_TYPES.keys())):
             devices.append(
                 # self, mac_address, tag_name, sensor_type, max_update_frequency
                 RuuviSensor(
@@ -43,27 +43,40 @@ async def get_sensor_set(hass, config):
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities, discovery_info=None):
-    """Set up ruuvi from a config entry."""
+    """Set up ruuvi from a config flow."""
     config = config_entry.data
-    print("SETUP ENTRY")
-    print(config)
-    devs = await get_sensor_set(hass, config)
-    devs_to_add = hass.data[DOMAIN][config.entry_id].update_devs(devs)
-    async_add_entities(devs_to_add)
-
-
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """Set up Ruuvi from a config entry."""
-    
-    print("SETUP ENTRY")
-    print(config)
-
     entities = []
     if hass.data.get(DOMAIN, False) is False:
         hass.data[DOMAIN] = {}
 
-    if config.get(CONF_BLUETOOTH):
-        bluetooth_conf = config.get(CONF_BLUETOOTH)
+    platform_type = config.get(CONF_ADAPTER).get(CONF_RUUVI_PLATFORM_TYPE)
+    if platform_type == CONF_BLUETOOTH:
+        entities = await get_sensor_set(hass, config)
+        bluetooth_options = config.get(CONF_ADAPTER).get(CONF_BLUETOOTH)
+        ruuvi_subscriber = RuuviBluetoothSubscriber(
+            entities, bluetooth_options.get(CONF_ADAPTER)
+        )
+        hass.data[DOMAIN][config.entry_id] = ruuvi_subscriber
+
+    elif platform_type == config.get(CONF_GATEWAY):
+        # Not implemented
+        entities = []
+        raise
+
+    async_add_entities(entities)
+    ruuvi_subscriber.start()
+    return True
+
+
+async def async_setup_platform(hass, config_entry, async_add_entities, discovery_info=None):
+    """Set up Ruuvi from a config entry."""
+    config = config_entry.data
+    entities = []
+    if hass.data.get(DOMAIN, False) is False:
+        hass.data[DOMAIN] = {}
+
+    if config.get(CONF_ADAPTER).get(CONF_RUUVI_PLATFORM_TYPE):
+        bluetooth_conf = config.get(CONF_ADAPTER).get(CONF_BLUETOOTH)
         entities = await get_sensor_set(hass, bluetooth_conf.get(CONF_SENSORS))
         ruuvi_subscriber = RuuviBluetoothSubscriber(
             bluetooth_conf.get(CONF_ADAPTER), entities
@@ -77,14 +90,4 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 
     async_add_entities(entities)
     ruuvi_subscriber.start()
-    hass.config_entries.async_setup_platforms(config, PLATFORMS)
     return True
-
-
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
-
-    return unload_ok

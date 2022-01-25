@@ -13,8 +13,12 @@ class RuuviSubscriber(object):
     """
 
     def __init__(self, sensors):
-        self.sensors_dict = None
-        self.update_devices(sensors)
+        # remove all sensors not in a list
+        self.sensors_dict = collections.defaultdict(
+            lambda: {key: None for key in SENSOR_TYPES.keys()}
+        )
+        for sensor in sensors:
+            self.sensors_dict[sensor.mac_address][sensor.sensor_type] = sensor
 
     def update_devices(self, sensors):
         # remove all sensors not in a list
@@ -33,14 +37,14 @@ class RuuviSubscriber(object):
 
 class RuuviBluetoothSubscriber(RuuviSubscriber):
     def __init__(self, sensors, adapter):
-        self.adapter = adapter
         super().__init__(sensors)
-
-    def start(self):
+        self.adapter = adapter
         self.client = RuuviTagClient(
             callback=self.handle_callback,
             mac_addresses=list(self.sensors_dict.keys()),
             bt_device=self.adapter)
+
+    def start(self):
         _LOGGER.info("Starting ruuvi client")
         self.client.start()
 
@@ -62,9 +66,7 @@ class RuuviBluetoothSubscriber(RuuviSubscriber):
     def update_devices(self, sensors):
         # TODO - Right now we just replace
         # Cycle through and add
-        self.sensors = sensors
-        for sensor in self.sensors:
-            self.sensors_dict[sensor.mac_address].append(sensor)
+        super().update_devices(sensors)
         self.client.set_mac_addresses(list(self.sensors_dict.keys()))
         return self.sensors
 
