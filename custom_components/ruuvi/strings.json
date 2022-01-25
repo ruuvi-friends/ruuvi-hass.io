@@ -1,41 +1,13 @@
 {
-  "title": "ruuvi",
   "config": {
     "step": {
-      "add_sensor": {
-        "data": {
-          "mac": "Mac Address",
-          "name": "Friendly Name"
-        }
-      },
-      "config_sensor": {
-        "title": "What conditions should be monitored?",
-        "data": {
-          "temperature": "Temperature",
-          "humidity": "Humidity",
-          "pressure": "Pressure",
-          "acceleration": "Acceleration",
-          "acceleration_x": "Acceleration x",
-          "acceleration_y": "Acceleration y",
-          "acceleration_z": "Acceleration z",
-          "battery": "Battery",
-          "movement_counter": "Movement counter"
-        }
-      },
-      "add_another": {
-        "data": {
-          "add_another": "Add another sensor?"
-        }
-      },
-      "user": {
-        "data": {
-        }
+      "confirm": {
+        "description": "[%key:common::config_flow::description::confirm_setup%]"
       }
     },
-    "error": {
-    },
     "abort": {
-      "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
+      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]",
+      "no_devices_found": "[%key:common::config_flow::abort::no_devices_found%]"
     }
   }
 }

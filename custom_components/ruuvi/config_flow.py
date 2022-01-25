@@ -1,79 +1,93 @@
+"""Config flow for Ruuvi."""
+import my_pypi_dependency
 from homeassistant import config_entries
+
 from typing import Any, Dict, Optional
-from .const import DOMAIN
-import voluptuous as vol
-from .sensor import (
-    CONF_MAC, CONF_NAME, CONF_SENSORS, SENSOR_TYPES, CONF_MONITORED_CONDITIONS
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_entry_flow
+
+from .const import (
+    DOMAIN, CONF_RUUVI_PLATFORM_TYPE, CONF_BLUETOOTH, CONF_GATEWAY,
+    CONF_ADAPTER, CONF_SENSORS
 )
-
-import homeassistant.helpers.config_validation as cv
-
-CONFIG_FLOW_RUUVI_ADD_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_MAC): cv.string,
-        vol.Optional(CONF_NAME): cv.string
-    }
-)
-
-config_schema = {}
-for condition in SENSOR_TYPES.keys():
-    config_schema[vol.Optional(condition)] = cv.boolean
-
-CONFIG_FLOW_RUUVI_CONFIG_SCHEMA = vol.Schema(
-    config_schema
-)
-
-ADD_ANOTHER_SCHEMA = vol.Schema(
-    {
-        vol.Optional("add_another"): cv.boolean
-    }
+from .schemas import (
+    CONFIG_FLOW_CHOOSE_PLATFORM_SCHEMA,
+    GATEWAY_ADAPTER_OPTIONS_SCHEMA,
+    BLUETOOTH_ADAPTER_OPTIONS_SCHEMA,
+    CONFIG_FLOW_ADD_ANOTHER_SCHEMA,
+    RUUVI_TAG_SCHEMA
 )
 
 
 class RuuviConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    metadata = {}
     data = {
         CONF_SENSORS: []
     }
-    previous_step_data = {}
 
     async def async_step_user(self, user_input=None):
+        # CHOSE TYPE
         """Invoked when a user initiates a flow via the user interface."""
         return await self.async_step_add_sensor()
+
+    async def async_choose_platform(self, user_input: Optional[Dict[str, Any]] = None):
+        """
+        Chooses if we're setuping a bluetooth or a Gateway
+        """
+        errors: Dict[str, str] = {}
+
+        if user_input is not None:
+            if not errors:
+                self.metadata[CONF_RUUVI_PLATFORM_TYPE] = user_input[CONF_RUUVI_PLATFORM_TYPE]
+                if user_input[CONF_RUUVI_PLATFORM_TYPE] == CONF_BLUETOOTH:
+                    return await self.async_configure_bluetooth()
+                elif user_input[CONF_RUUVI_PLATFORM_TYPE] == CONF_GATEWAY:
+                    return await self.async_configure_gateway()
+
+        return self.async_show_form(
+            step_id="choose_platform", data_schema=CONFIG_FLOW_CHOOSE_PLATFORM_SCHEMA, errors=errors
+        )
+
+    async def async_configure_bluetooth(self, user_input: Optional[Dict[str, Any]] = None):
+        """
+        Chooses if we're setuping a bluetooth or a Gateway
+        """
+        errors: Dict[str, str] = {}
+
+        if user_input is not None:
+            if not errors:
+                self.data[CONF_ADAPTER] = user_input[CONF_ADAPTER]
+            return await self.async_step_add_sensor()
+
+        return self.async_show_form(
+            step_id="configure_bluetooth", data_schema=BLUETOOTH_ADAPTER_OPTIONS_SCHEMA, errors=errors
+        )
+
+    async def async_configure_gateway(self, user_input: Optional[Dict[str, Any]] = None):
+        """
+        Chooses if we're setuping a bluetooth or a Gateway
+        """
+        errors: Dict[str, str] = {}
+
+        if user_input is not None:
+            if not errors:
+                # TODO -- TODO
+                return await self.async_step_add_sensor()
+
+        return self.async_show_form(
+            step_id="configure_gateway", data_schema=GATEWAY_ADAPTER_OPTIONS_SCHEMA, errors=errors
+        )
 
     async def async_step_add_sensor(self, user_input: Optional[Dict[str, Any]] = None):
         errors: Dict[str, str] = {}
 
         if user_input is not None:
-            # VALIDATE HERE
             if not errors:
-                self.previous_step_data = {
-                    CONF_MAC: user_input[CONF_MAC],
-                    CONF_NAME: user_input.get(CONF_NAME, None),
-                }
-                return await self.async_step_config_sensor()
-
-        return self.async_show_form(
-            step_id="add_sensor", data_schema=CONFIG_FLOW_RUUVI_ADD_SCHEMA, errors=errors
-        )
-
-    async def async_step_config_sensor(self, user_input: Optional[Dict[str, Any]] = None):
-        """Second step in config flow to add a repo to watch."""
-        errors: Dict[str, str] = {}
-        if user_input is not None:
-            # VALIDATE HERE
-            if not errors:
-                # Input is valid, set data.
-                self.data[CONF_SENSORS].append(
-                    {
-                        CONF_MAC: self.previous_step_data[CONF_MAC],
-                        CONF_NAME: self.previous_step_data[CONF_NAME],
-                        CONF_MONITORED_CONDITIONS: [x for x in SENSOR_TYPES.keys() if user_input.get(x, False)]
-                    }
-                )
+                self.data[CONF_SENSORS].append(user_input)
                 return await self.async_step_add_another()
 
         return self.async_show_form(
-            step_id="config_sensor", data_schema=CONFIG_FLOW_RUUVI_CONFIG_SCHEMA, errors=errors
+            step_id="add_sensor", data_schema=RUUVI_TAG_SCHEMA, errors=errors
         )
 
     async def async_step_add_another(self, user_input: Optional[Dict[str, Any]] = None):
@@ -89,9 +103,21 @@ class RuuviConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 # User is done adding repos, create the config entry.
                 return self.async_create_entry(
                     title="Ruuvi Sensors",
-                    data=self.data
+                    data={
+                        self.metadata[CONF_RUUVI_PLATFORM_TYPE]: self.data
+                    }
                 )
 
         return self.async_show_form(
-            step_id="add_another", data_schema=ADD_ANOTHER_SCHEMA, errors=errors
+            step_id="add_another", data_schema=CONFIG_FLOW_ADD_ANOTHER_SCHEMA, errors=errors
         )
+
+
+async def _async_has_devices(hass: HomeAssistant) -> bool:
+    """Return if there are devices that can be discovered."""
+    # TODO Check if there are any devices that can be discovered in the network.
+    devices = await hass.async_add_executor_job(my_pypi_dependency.discover)
+    return len(devices) > 0
+
+
+config_entry_flow.register_discovery_flow(DOMAIN, "Ruuvi", _async_has_devices)
